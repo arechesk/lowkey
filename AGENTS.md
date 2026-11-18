@@ -1,4 +1,8 @@
-# Lowkey project rules
+# lowkey project rules
+
+- Always write the public product name **lowkey**, in lowercase, including menus,
+  titles, documentation, landing copy and release names. Preserve existing Swift
+  module/type names, bundle ID and stored data paths for compatibility.
 
 - Native macOS browser: AppKit, WebKit, SwiftUI settings. Bundle identifier
   `io.bobuk.lowkey`; use `io.bobuk` for new identifiers.
@@ -21,7 +25,7 @@
   Scripts/release/doctor.sh and test safely with Scripts/release/test_kit.sh.
   Public binaries require Developer ID signing, notarization, stapling, local
   tests, a universal ZIP, checksums, GitHub publication, installation at
-  /Applications/Lowkey.app and restart, and landing deployment. No Sparkle or
+  /Applications/lowkey.app and restart, and landing deployment. No Sparkle or
   Homebrew support is currently shipped; do not claim it exists.
 - Update the landing site in all three locales when a release needs it. See
   ../AGENTS.md and ../landing/docs/updating.md. Never announce an unpublished

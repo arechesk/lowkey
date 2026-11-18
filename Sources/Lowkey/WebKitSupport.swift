@@ -81,7 +81,7 @@ enum WebKitSupport {
     /// Identify Lowkey without impersonating Safari or bypassing identity-provider policy.
     static var userAgentSuffix: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        return "Lowkey/\(version)"
+        return "lowkey/\(version)"
     }
 
     @MainActor static func makeWebView(configuration: WKWebViewConfiguration) -> LowkeyWebView {
@@ -150,7 +150,7 @@ enum WebKitSupport {
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         destinations.removeValue(forKey: ObjectIdentifier(download))
-        NSLog("Lowkey download failed: \(error.localizedDescription)")
+        NSLog("lowkey download failed: \(error.localizedDescription)")
     }
 }
 

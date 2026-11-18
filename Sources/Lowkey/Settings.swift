@@ -57,7 +57,7 @@ import SwiftUI
         let site = draft.sites[index]
         let alert = NSAlert()
         alert.messageText = "Remove “\(site.displayTitle)”?"
-        alert.informativeText = "Lowkey closes its window and deletes its profile: cookies, sign-ins and site data. This can’t be undone."
+        alert.informativeText = "lowkey closes its window and deletes its profile: cookies, sign-ins and site data. This can’t be undone."
         alert.addButton(withTitle: "Remove")
         alert.addButton(withTitle: "Cancel")
         alert.buttons.first?.hasDestructiveAction = true
@@ -100,7 +100,7 @@ import SwiftUI
     func clearHistory() {
         let alert = NSAlert()
         alert.messageText = "Clear input history?"
-        alert.informativeText = "Lowkey forgets every address and alias you typed. Saved sites stay."
+        alert.informativeText = "lowkey forgets every address and alias you typed. Saved sites stay."
         alert.addButton(withTitle: "Clear")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -196,7 +196,7 @@ private struct SitesPane: View {
                 .font(.body.monospaced())
             Picker("Links to other sites", selection: model.site(\.externalLinks, default: .defaultBrowser)) {
                 Text("Open in the default browser").tag(ExternalLinkPolicy.defaultBrowser)
-                Text("Open in Lowkey").tag(ExternalLinkPolicy.lowkey)
+                Text("Open in lowkey").tag(ExternalLinkPolicy.lowkey)
             }
             TextField("Own origins", text: $originsText, prompt: Text("ha.example.com, *.nabu.casa"))
                 .font(.body.monospaced())
@@ -258,7 +258,7 @@ private struct AppearancePane: View {
                 }
                 Button("Reset to Amber", action: model.resetColors)
             } footer: {
-                Text("Page mode follows each page’s background, falling back to System when unavailable. Each window switches independently. Light and dark palettes keep their own colors; Lowkey never recolors the page.")
+                Text("Page mode follows each page’s background, falling back to System when unavailable. Each window switches independently. Light and dark palettes keep their own colors; lowkey never recolors the page.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -326,7 +326,7 @@ private struct GeneralPane: View {
     init(app: AppController) {
         model = SettingsModel(app: app)
         let window = ChromeWindow(contentRect: NSRect(x: 0, y: 0, width: 712, height: 516), trailing: [])
-        window.title = "Lowkey Settings"
+        window.title = "lowkey Settings"
         let hosting = NSHostingView(rootView: SettingsView(model: model, store: app.store))
         hosting.translatesAutoresizingMaskIntoConstraints = false
         WebKitSupport.pin(hosting, in: window.body)

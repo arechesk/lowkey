@@ -87,8 +87,8 @@ import LowkeyCore
     private func makeMainMenu() -> NSMenu {
         let main = NSMenu()
 
-        let app = submenu(in: main, title: "Lowkey")
-        app.addItem(withTitle: "About Lowkey", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        let app = submenu(in: main, title: "lowkey")
+        app.addItem(withTitle: "About lowkey", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(item("Settings…", #selector(showSettings(_:)), ",", target: self))
         app.addItem(.separator())
@@ -97,11 +97,11 @@ import LowkeyCore
         NSApp.servicesMenu = services.submenu
         app.addItem(services)
         app.addItem(.separator())
-        app.addItem(item("Hide Lowkey", #selector(NSApplication.hide(_:)), "h"))
+        app.addItem(item("Hide lowkey", #selector(NSApplication.hide(_:)), "h"))
         app.addItem(item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]))
         app.addItem(item("Show All", #selector(NSApplication.unhideAllApplications(_:)), ""))
         app.addItem(.separator())
-        app.addItem(item("Quit Lowkey", #selector(NSApplication.terminate(_:)), "q"))
+        app.addItem(item("Quit lowkey", #selector(NSApplication.terminate(_:)), "q"))
 
         let file = submenu(in: main, title: "File")
         file.addItem(item("New Window…", #selector(newWindow(_:)), "n", target: self))

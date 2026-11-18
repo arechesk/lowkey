@@ -5,7 +5,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 "$ROOT/Scripts/package_app.sh" "${1:-debug}"
 if [[ -n "${LOWKEY_CONFIG:-}" ]]; then
   # `open` does not pass the environment; start the binary directly.
-  "$ROOT/build/Lowkey.app/Contents/MacOS/Lowkey" >/dev/null 2>&1 &
+  "$ROOT/build/lowkey.app/Contents/MacOS/Lowkey" >/dev/null 2>&1 &
 else
-  open "$ROOT/build/Lowkey.app"
+  open "$ROOT/build/lowkey.app"
 fi

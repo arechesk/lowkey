@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds Lowkey.app. Usage: Scripts/package_app.sh [debug|release]
+# Builds lowkey.app. Usage: Scripts/package_app.sh [debug|release]
 # Follows the release kit contract (Scripts/release/README.md):
 #   ARCHES          architectures, space separated (default: this Mac's)
-#   APP_OUTPUT_DIR  where Lowkey.app is written (default: build/)
+#   APP_OUTPUT_DIR  where lowkey.app is written (default: build/)
 #   SIGNING_MODE    adhoc, or developer-id with APP_IDENTITY (Hardened Runtime, timestamp)
 # Signs ad hoc unless APP_IDENTITY names a Developer ID certificate and SIGNING_MODE is not adhoc.
 set -euo pipefail
@@ -11,7 +11,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 source "$ROOT/version.env"
 OUTPUT_DIR=${APP_OUTPUT_DIR:-"$ROOT/build"}
-APP="$OUTPUT_DIR/Lowkey.app"
+APP="$OUTPUT_DIR/lowkey.app"
 BUNDLE_ID=io.bobuk.lowkey
 read -r -a ARCH_LIST <<<"${ARCHES:-$(uname -m)}"
 
@@ -42,8 +42,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Lowkey</string>
-    <key>CFBundleDisplayName</key><string>Lowkey</string>
+    <key>CFBundleName</key><string>lowkey</string>
+    <key>CFBundleDisplayName</key><string>lowkey</string>
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>Lowkey</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -61,8 +61,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
         <key>CFBundleURLSchemes</key><array><string>lowkey</string></array>
     </dict></array>
     <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoadsInWebContent</key><true/></dict>
-    <key>NSCameraUsageDescription</key><string>A website you open in Lowkey asks to use the camera.</string>
-    <key>NSMicrophoneUsageDescription</key><string>A website you open in Lowkey asks to use the microphone.</string>
+    <key>NSCameraUsageDescription</key><string>A website you open in lowkey asks to use the camera.</string>
+    <key>NSMicrophoneUsageDescription</key><string>A website you open in lowkey asks to use the microphone.</string>
 </dict>
 </plist>
 PLIST

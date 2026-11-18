@@ -31,7 +31,7 @@ import WebKit
             config = try Config.load(from: configURL)
         } catch {
             config = Config()
-            problem = "Can’t read \(configURL.path): \(error.localizedDescription). Lowkey will not overwrite it until you change a setting."
+            problem = "Can’t read \(configURL.path): \(error.localizedDescription). lowkey will not overwrite it until you change a setting."
         }
         history = InputHistory.load(from: historyURL)
     }
@@ -68,7 +68,7 @@ import WebKit
     }
 
     private func saveHistory() {
-        do { try history.save(to: historyURL) } catch { NSLog("Lowkey: can’t save history: \(error.localizedDescription)") }
+        do { try history.save(to: historyURL) } catch { NSLog("lowkey: can’t save history: \(error.localizedDescription)") }
     }
 }
 
@@ -258,7 +258,7 @@ import WebKit
             do {
                 try await WKWebsiteDataStore.remove(forIdentifier: id)
             } catch {
-                NSLog("Lowkey: can’t remove the profile of a deleted site: \(error.localizedDescription)")
+                NSLog("lowkey: can’t remove the profile of a deleted site: \(error.localizedDescription)")
             }
         }
     }
