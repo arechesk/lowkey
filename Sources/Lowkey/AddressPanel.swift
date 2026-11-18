@@ -1,5 +1,7 @@
 import AppKit
+import SwiftUI
 import LowkeyCore
+import BobukUI
 
 /// The ⌘L prompt: an alias or an address, with suggestions from saved sites and input history.
 @MainActor final class AddressPanel: NSPanel, NSTextFieldDelegate, PageThemeProviding {
@@ -11,15 +13,15 @@ import LowkeyCore
     /// nil until the user picks a row with the arrow keys or the mouse.
     private var selected: Int?
 
-    private let background = PanelBackground()
-    private let accent = AccentBar()
+    private let background = PickerSurfaceView(palette: ThemeCenter.shared.tokens.pickerPalette)
+    private let accent = NSView()
     private let infoRow = NSStackView()
     private let infoGlyph = GlyphView(glyph: .lock)
     private let infoLabel = NSTextField(labelWithString: "")
     private let arrow = NSTextField(labelWithString: "→")
     private let field = NSTextField()
     private let list = NSStackView()
-    private let footer = NSTextField(labelWithString: "")
+    private let footer = NSHostingView(rootView: ShortcutFooter([], palette: ThemeCenter.shared.tokens.pickerPalette))
     private let infoSeparator = Separator()
     private let listSeparator = Separator()
     private let footerSeparator = Separator()
@@ -97,7 +99,6 @@ import LowkeyCore
         list.spacing = 0
         list.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
 
-        footer.font = .monospacedSystemFont(ofSize: 10, weight: .regular)
         let footerRow = NSStackView(views: [footer])
         footerRow.edgeInsets = NSEdgeInsets(top: 8, left: 16, bottom: 9, right: 16)
 
@@ -106,7 +107,7 @@ import LowkeyCore
             stack.addArrangedSubview(view)
             view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
-        accent.heightAnchor.constraint(equalToConstant: 2).isActive = true
+        accent.heightAnchor.constraint(equalToConstant: PickerMetrics.accentHeight).isActive = true
 
         background.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(stack)
@@ -124,6 +125,17 @@ import LowkeyCore
 
     func show(target: WebWindowController?, newWindow: Bool, prefill: String?, message: String?,
               inCurrentProfile: Bool = false) {
+        configure(target: target, newWindow: newWindow, prefill: prefill, message: message,
+                  inCurrentProfile: inCurrentProfile)
+        NSApp.activate()
+        makeKeyAndOrderFront(nil)
+        makeFirstResponder(field)
+        field.currentEditor()?.selectAll(nil)
+    }
+
+    /// Populate and measure without activating the window; showing owns focus separately.
+    func configure(target: WebWindowController?, newWindow: Bool, prefill: String?, message: String?,
+                   inCurrentProfile: Bool = false) {
         self.target = target
         self.newWindow = newWindow
         self.inCurrentProfile = inCurrentProfile
@@ -135,10 +147,6 @@ import LowkeyCore
         applyTheme()
         refresh()
         position()
-        NSApp.activate()
-        makeKeyAndOrderFront(nil)
-        makeFirstResponder(field)
-        field.currentEditor()?.selectAll(nil)
     }
 
     private func setInfo(message: String?) {
@@ -214,26 +222,31 @@ import LowkeyCore
         suggestions = Suggestions.make(query: field.stringValue, sites: app.store.config.sites, history: app.store.history)
         if let index = selected, index >= suggestions.count { selected = suggestions.isEmpty ? nil : suggestions.count - 1 }
         list.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let badgeWidth = PickerMetrics.badgeWidth(for: suggestions.compactMap {
+            if case .site(let site) = $0 { return site.alias.uppercased() }
+            return nil
+        })
         for (index, suggestion) in suggestions.enumerated() {
-            let row = SuggestionRow(suggestion: suggestion, selected: index == selected, tokens: themeTokens)
-            row.onChoose = { [weak self] in self?.submit(text: suggestion.text) }
-            row.onRemove = { [weak self] in
-                self?.app.store.removeHistory(suggestion.text)
-                self?.refresh()
-            }
+            let row = NSHostingView(rootView: SuggestionRow(suggestion: suggestion, selected: index == selected,
+                badgeWidth: badgeWidth, palette: themeTokens.pickerPalette,
+                onChoose: { [weak self] in self?.submit(text: suggestion.text) },
+                onRemove: { [weak self] in
+                    self?.app.store.removeHistory(suggestion.text)
+                    self?.refresh()
+                }))
+            row.translatesAutoresizingMaskIntoConstraints = false
             list.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: list.widthAnchor, constant: -12).isActive = true
+            row.heightAnchor.constraint(equalToConstant: PickerMetrics.rowHeight).isActive = true
         }
         list.isHidden = suggestions.isEmpty
         listSeparator.isHidden = suggestions.isEmpty
         let browser = self.target as? BrowserWindowController
         let target = newWindow || browser?.kind != .ordinary ? "new window" : "this window"
-        if inCurrentProfile {
-            footer.stringValue = "↩ open in this profile   ↑↓ choose   ⌘C copy URL   esc close"
-        } else {
-            footer.stringValue = "↩ open (address: \(target))   ⌘↩ new window   ↑↓ choose   ⌘C copy URL   esc close"
-        }
-        footer.textColor = NSColor(themeTokens.muted)
+        var hints: [ShortcutHint] = [.init("↩", inCurrentProfile ? "open in this profile" : "open (address: \(target))")]
+        if !inCurrentProfile { hints.append(.init("⌘↩", "new window")) }
+        hints += [.init("↑↓", "choose"), .init("⌘C", "copy URL"), .init("esc", "close")]
+        footer.rootView = ShortcutFooter(hints, palette: themeTokens.pickerPalette)
         if isVisible { layoutIfNeededForSize() }
     }
 
@@ -247,12 +260,11 @@ import LowkeyCore
         switch selector {
         case #selector(NSResponder.moveDown(_:)):
             guard !suggestions.isEmpty else { return true }
-            selected = selected.map { min($0 + 1, suggestions.count - 1) } ?? 0
+            selected = PickerSelection.move(selected, by: 1, count: suggestions.count, allowsEmpty: true)
             refresh()
             return true
         case #selector(NSResponder.moveUp(_:)):
-            guard let index = selected else { return true }
-            selected = index == 0 ? nil : index - 1
+            selected = PickerSelection.move(selected, by: -1, count: suggestions.count, allowsEmpty: true)
             refresh()
             return true
         case #selector(NSResponder.insertNewline(_:)), #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)):
@@ -298,38 +310,12 @@ import LowkeyCore
     private func applyTheme() {
         let tokens = themeTokens
         appearance = ThemeCenter.shared.chromeAppearance(pageIsDark: pageIsDark)
-        background.needsDisplay = true
-        accent.needsDisplay = true
+        background.palette = tokens.pickerPalette
         arrow.textColor = NSColor(tokens.accent)
         field.textColor = NSColor(tokens.ink)
-        footer.textColor = NSColor(tokens.muted)
         for separator in [infoSeparator, listSeparator, footerSeparator] { separator.needsDisplay = true }
         infoGlyph.needsDisplay = true
         if isVisible { refresh() }
-    }
-}
-
-/// Rounded panel with a thin border, drawn in the theme colors.
-@MainActor private final class PanelBackground: NSView {
-    override var isFlipped: Bool { true }
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        wantsLayer = true
-        layer?.cornerRadius = 10
-        layer?.masksToBounds = true
-    }
-
-    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let tokens = lowkeyTokens
-        NSColor(tokens.panel).setFill()
-        bounds.fill()
-        let border = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 10, yRadius: 10)
-        NSColor(tokens.line).setStroke()
-        border.lineWidth = 1
-        border.stroke()
     }
 }
 
@@ -338,116 +324,5 @@ import LowkeyCore
     override func draw(_ dirtyRect: NSRect) {
         NSColor(lowkeyTokens.stroke).setFill()
         bounds.fill()
-    }
-}
-
-/// One suggestion: an amber alias key for saved sites, or a history entry with a remove cross.
-@MainActor private final class SuggestionRow: NSView {
-    var onChoose: (() -> Void)?
-    var onRemove: (() -> Void)?
-    private let isSelected: Bool
-    private let isHistory: Bool
-    private var hovering = false
-    private let removeButton = GlyphButton(glyph: .close, label: "Remove from history")
-    private var trackingArea: NSTrackingArea?
-
-    init(suggestion: Suggestion, selected: Bool, tokens: ThemeTokens) {
-        isSelected = selected
-        if case .history = suggestion { isHistory = true } else { isHistory = false }
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 30).isActive = true
-
-        let badge = NSTextField(labelWithString: "")
-        badge.font = .monospacedSystemFont(ofSize: 10, weight: .semibold)
-        badge.alignment = .center
-        badge.wantsLayer = true
-        badge.layer?.cornerRadius = 4
-        let title = NSTextField(labelWithString: "")
-        title.font = .systemFont(ofSize: 12.5)
-        title.textColor = NSColor(tokens.ink)
-        title.lineBreakMode = .byTruncatingMiddle
-        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let detail = NSTextField(labelWithString: "")
-        detail.font = .systemFont(ofSize: 10.5)
-        detail.textColor = NSColor(tokens.muted)
-        detail.lineBreakMode = .byTruncatingMiddle
-        detail.setContentCompressionResistancePriority(.defaultLow - 1, for: .horizontal)
-
-        switch suggestion {
-        case .site(let site):
-            badge.stringValue = site.alias.uppercased()
-            badge.textColor = NSColor(tokens.keyInk)
-            badge.layer?.backgroundColor = NSColor(tokens.accent).cgColor
-            title.stringValue = site.displayTitle
-            detail.stringValue = site.url?.host() ?? site.startURL
-            removeButton.isHidden = true
-            setAccessibilityLabel("Site \(site.alias), \(site.displayTitle)")
-        case .history(let text):
-            badge.stringValue = "↺"
-            badge.textColor = NSColor(tokens.muted)
-            badge.layer?.backgroundColor = NSColor(tokens.ink, alpha: 0.07).cgColor
-            title.stringValue = text
-            removeButton.isHidden = !selected
-            setAccessibilityLabel("History \(text)")
-        }
-        removeButton.onPress = { [weak self] _ in self?.onRemove?() }
-
-        let stack = NSStackView(views: [badge, title, NSView(), detail, removeButton])
-        stack.orientation = .horizontal
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 0, right: 6)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            badge.widthAnchor.constraint(greaterThanOrEqualToConstant: 40),
-            badge.heightAnchor.constraint(equalToConstant: 18),
-            removeButton.widthAnchor.constraint(equalToConstant: 18),
-            removeButton.heightAnchor.constraint(equalToConstant: 18),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-        ])
-        setAccessibilityRole(.button)
-        setAccessibilityElement(true)
-    }
-
-    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
-
-    override func updateTrackingAreas() {
-        if let trackingArea { removeTrackingArea(trackingArea) }
-        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                                  owner: self, userInfo: nil)
-        addTrackingArea(area)
-        trackingArea = area
-        super.updateTrackingAreas()
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        hovering = true
-        if isHistory { removeButton.isHidden = false }
-        needsDisplay = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        hovering = false
-        removeButton.isHidden = !(isHistory && isSelected)
-        needsDisplay = true
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        if bounds.contains(convert(event.locationInWindow, from: nil)) { onChoose?() }
-    }
-
-    override func accessibilityPerformPress() -> Bool {
-        onChoose?()
-        return true
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard isSelected || hovering else { return }
-        NSColor(lowkeyTokens.ink, alpha: isSelected ? 0.09 : 0.05).setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: 5, yRadius: 5).fill()
     }
 }

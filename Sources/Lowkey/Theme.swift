@@ -1,5 +1,13 @@
 import AppKit
 import LowkeyCore
+import BobukUI
+
+extension ThemeTokens {
+    var pickerPalette: PickerPalette {
+        PickerPalette(surface: NSColor(panel), text: NSColor(ink), secondary: NSColor(muted),
+                      accent: NSColor(accent), border: NSColor(line), badgeInk: NSColor(keyInk))
+    }
+}
 
 extension NSColor {
     convenience init(_ rgb: RGB, alpha: CGFloat = 1) {

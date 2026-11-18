@@ -146,6 +146,19 @@ Lowkey provides separate sign-in/popup windows sharing the parent profile, with 
 
 Basic downloads, uploads, JavaScript dialogs and HTTP authentication are implemented. No extensions, password manager integration or automatic updates. A signed/notarized distribution pipeline is prepared, but no public binary has been released yet.
 
+## Shared picker UI
+
+The address prompt uses [BobukKit](https://github.com/bobuk-io/BobukKit) for row
+geometry, aligned fixed-width alias badges, hover/selection, the rounded panel
+frame and wrapping shortcut hints. Lowkey retains its per-window palette, profile
+logic, search and native keyboard handlers. Its self-contained local package is
+`Vendor/BobukKit`; source builds need no separate BobukKit checkout or network dependency.
+
+Canonical checkout: `~/GitHub/bobuk.io/BobukKit`. Change shared components there,
+then run `Scripts/sync.sh` and `Scripts/sync.sh --check` there to update/check all
+registered consumers. Never edit a vendored copy. Release EXTRA_TESTS verifies
+the snapshot hashes and runs the library tests alongside Lowkey's own tests.
+
 ## Layout
 
 - `Sources/LowkeyCore`: pure configuration, aliases, URLs, input history, link policy, palette and page-background classification.
