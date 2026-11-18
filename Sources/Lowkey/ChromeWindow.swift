@@ -230,8 +230,10 @@ import LowkeyCore
         if let themeObserver { NotificationCenter.default.removeObserver(themeObserver) }
     }
 
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
+    // A targeted hide must not let AppKit promote a window that belongs behind another app.
+    var allowsFocus = true
+    override var canBecomeKey: Bool { allowsFocus }
+    override var canBecomeMain: Bool { allowsFocus }
 
     /// The transparent title bar still catches clicks; hide it so the strip and the page get them.
     private func hideTitlebarContainer() {

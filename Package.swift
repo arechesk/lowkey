@@ -9,6 +9,8 @@ let package = Package(
         // Pure logic: configuration, deep links, address input, history, link policy, themes. No AppKit.
         .target(name: "LowkeyCore", path: "Sources/LowkeyCore",
                 swiftSettings: [.swiftLanguageMode(.v5)]),
+        .executableTarget(name: "lowkeyctl", dependencies: ["LowkeyCore"],
+                          swiftSettings: [.swiftLanguageMode(.v5)]),
         // The browser app (AppKit + WebKit + SwiftUI settings).
         .executableTarget(name: "Lowkey", dependencies: ["LowkeyCore", .product(name: "BobukUI", package: "BobukKit")], path: "Sources/Lowkey",
                           swiftSettings: [.swiftLanguageMode(.v5)]),

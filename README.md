@@ -10,13 +10,14 @@ Developer ID signed, notarized and stapled. The public product name is always
 ## Install
 
 Download the universal ZIP from [GitHub Releases](https://github.com/bobuk-io/lowkey/releases/latest),
-unzip it and move **lowkey.app** to `/Applications`. Open the app and enter an
-address, or open Settings (⌘,) to add saved sites. Releases include a SHA-256
-checksum. Do not disable Gatekeeper to install an unknown binary.
+unzip it and move **lowkey.app** to `/Applications`. Open the app and press ⌘L
+to enter an address, or press ⌘, to add saved sites in Settings. Releases include a
+SHA-256 checksum. Do not disable Gatekeeper to install an unknown binary.
 
 There is no automatic updater, Sparkle integration or Homebrew cask. To update,
 quit lowkey, download the new release and replace only the app. Settings, history,
-profiles and sign-ins are retained. Launching opens the address prompt, not old windows.
+profiles and sign-ins are retained. Launching does not open any windows. Click the
+Dock icon again to open the address prompt, even when a site window is visible.
 
 ## Windows and keyboard
 
@@ -59,7 +60,8 @@ but does not guarantee that an identity provider supports embedded browsers.
 ## Addresses and suggestions
 
 The prompt accepts HTTP(S) URLs and bare hosts. Bare hosts use HTTPS; loopback uses
-HTTP. There is no search-engine fallback. Suggestions come from aliases and the last
+HTTP. There is no search-engine fallback. An empty prompt lists only configured sites.
+Once you type, suggestions come from aliases and the last
 **1,000 unique submitted entries**, not every visited page. Russian/Ukrainian ↔ US
 keyboard-layout variants also match: `рф` can find `HA`. Original-spelling matches
 come first; valid typed URLs and the field text are never silently rewritten.
@@ -114,12 +116,83 @@ Light/dark palettes are independent, with editable panel/accent colors. Presets 
 Amber, Sage, Ocean, Terracotta, Dracula, Nord, Catppuccin, Gruvbox, Solarized, Tokyo Night,
 One Light/Dark and Rosé Pine. Settings uses System in Page mode.
 
+## Command line
+
+Run the helper directly (not via `open`) to address a saved site without opening a URL:
+
+```sh
+/Applications/lowkey.app/Contents/Helpers/lowkeyctl HA toggle
+```
+
+To click a button or link in an already-open site window, pass its exact label as one argument:
+
+```sh
+/Applications/lowkey.app/Contents/Helpers/lowkeyctl HA click 'Refresh list'
+```
+
+`click` does not open or raise the window. It matches rendered text or `aria-label`
+(case-sensitive, whitespace normalized) in the main document, including open shadow roots,
+not iframes. It requires the saved start URL's origin. No match, multiple matches or a
+disabled control return an error without clicking. Exit status 0 means the click was
+dispatched, not that the website completed the action. This is a local CLI command,
+not a `lowkey://` link.
+
+To attach one file to an already-open page:
+
+```sh
+/Applications/lowkey.app/Contents/Helpers/lowkeyctl HA upload 'file name.pdf'
+```
+
+The helper reads one regular file (up to 8 MiB) and passes its basename and bytes,
+not its local path. The page must be on the saved origin. By default it must have exactly one file
+input in the main document or its open shadow roots. Add `--field 'Document'`
+to select one input by its exact HTML or ARIA label instead. A hidden input is supported;
+ambiguous matches, a disabled input, directories and incompatible file types are rejected.
+This replaces the current file selection and fires `input` and `change`. It doesn't
+submit the form, but the site can read or send the file immediately. No `lowkey://`
+upload commands are supported.
+
+Other local commands (prefix each with `lowkeyctl HA`):
+
+| Command | Result |
+|---|---|
+| `inspect [--json]` | List controls with their types and labels, not current field values. |
+| `status [--json]` | Report window visibility, focus, minimization and loading without raising the window. |
+| `wait [label] [--timeout seconds]` | Wait for DOM readiness, optionally for one visible, enabled control with an exact label. Defaults to 10 seconds (1–300). Does not wait for network idle or click. |
+| `fill 'Comment' 'Hello'` | Set a labelled text input or textarea; no password fields. |
+| `select 'Period' 'This month'` | Select an option by display text in a labelled native single-select. |
+
+Page commands only work in the saved origin, main document and open shadow roots. `fill` and
+`select` fire input/change events, not a submit; the site's own handlers may save changes.
+
+Window commands: `toggle`, `open`, `hide`, `rewind`, each preceded by one saved alias.
+`lowkeyctl HA rewind` shows HA and navigates back to its configured start URL, not the previous history entry. `open` and
+`toggle` start the containing app if necessary; `hide` does nothing if it isn't
+running. The helper uses local IPC, not a network service. For a toggle, lowkey
+selects the target window before the helper requests focus. Existing URL bindings
+still work. macOS delivers `open 'lowkey://…'` as a URL; it does not call `lowkeyctl`.
+Ting builds with helper support translate single-site open, toggle, hide and rewind bindings
+into helper arguments. For page actions, use a [Ting `lowkey` step](https://github.com/bobuk-io/ting/blob/main/docs/micro-apps/FORMAT.md#lowkey-steps), not a URL binding.
+
+For example, to find a control before automating it:
+
+```sh
+ctl=/Applications/lowkey.app/Contents/Helpers/lowkeyctl
+"$ctl" HA status --json
+"$ctl" HA inspect --json
+```
+
+`status` reports `alias`, `open`, `visible`, `minimized`, `focused` and `loading`.
+`inspect` needs an open window; each result has `type`, `labels`, `disabled` and `visible`.
+Use a label from that output with `wait`, `fill`, `select` or `click`. Match failures
+return a nonzero exit status; do not retry a click or upload automatically.
+
 ## Deep links
 
 ```sh
 open 'lowkey://HA/open'       # create or bring back a saved-site window
-open 'lowkey://HA/toggle'     # visible → hide; hidden/minimized → show; unopened → create
-open 'lowkey://*/toggle'      # toggle existing saved-site windows together
+open 'lowkey://HA/toggle'     # frontmost → hide; background/hidden/minimized → show; unopened → create
+open 'lowkey://*/toggle'      # frontmost saved site → hide all; otherwise raise existing saved-site windows
 open 'lowkey://HA/reload'
 open 'lowkey://HA/back'
 open 'lowkey://HA/forward'
@@ -128,8 +201,9 @@ open 'lowkey://HA/hide'
 open 'lowkey://HA/close'      # release live page, retain profile
 ```
 
-The wildcard hides existing saved-site windows if any is visible, or shows them if
-none is visible. It does not open unused sites or touch ordinary windows.
+Toggling a single alias brings only that site's window forward. The wildcard hides
+existing saved-site windows if one has focus, or shows them otherwise. It does not
+open unused sites or touch ordinary windows.
 `lowkey://` opens the prompt; unknown aliases appear there. Names are case-insensitive.
 Deep links intentionally expose no JavaScript, clicks, shell or page automation.
 
@@ -153,11 +227,14 @@ Swift 6.2 / Xcode 26 or later, on macOS:
 git clone https://github.com/bobuk-io/lowkey.git
 cd lowkey
 swift test
-Scripts/run.sh                     # debug → build/lowkey.app → launch
+Scripts/run.sh                     # build and run the debug app
 Scripts/package_app.sh release      # release build, ad-hoc signed by default
 ```
 
-Quit a development copy before rebuilding its bundle. For isolated manual checks:
+Below 0.5.0, `Scripts/run.sh` builds the app, stops running lowkey copies,
+replaces `/Applications/lowkey.app`, and starts the new build. From 0.5.0,
+it uses `build/lowkey.app` instead; quit that copy before rebuilding its bundle.
+For isolated manual checks without replacing the installed app or stopping other copies:
 
 ```sh
 LOWKEY_CONFIG=/tmp/lowkey-test.json Scripts/run.sh

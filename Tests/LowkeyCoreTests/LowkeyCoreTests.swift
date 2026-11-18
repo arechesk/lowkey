@@ -95,9 +95,10 @@ private let ha = Site(alias: "HA", title: "Home Assistant", startURL: "https://h
         #expect(result == [.site(grafana), .history("https://graphql.org")])
     }
 
-    @Test func emptyQueryListsEverything() {
+    @Test(arguments: ["", "  \t"]) func blankQueryListsOnlySavedSites(_ query: String) {
         let history = InputHistory(entries: ["https://github.com"])
-        #expect(Suggestions.make(query: "", sites: [ha], history: history) == [.site(ha), .history("https://github.com")])
+        #expect(Suggestions.make(query: query, sites: [ha, grafana], history: history) == [.site(ha), .site(grafana)])
+        #expect(Suggestions.make(query: query, sites: [], history: history).isEmpty)
     }
 
     @Test func historyPrefixBeatsContains() {

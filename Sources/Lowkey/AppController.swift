@@ -103,7 +103,7 @@ import WebKit
 
     // MARK: Deep links
 
-    func handle(url: URL) {
+    func handle(url: URL, beforeActivation: ToggleWindowOrder? = nil) {
         switch DeepLink.parse(url) {
         case .success(.prompt):
             showPrompt(target: currentBrowser, newWindow: false)
@@ -117,7 +117,7 @@ import WebKit
                            message: "No site named “\(alias)”. Add it in Settings (⌘,).")
                 return
             }
-            run(command, on: site)
+            run(command, on: site, beforeActivation: beforeActivation)
         case .failure(.unknownCommand(let name)):
             let known = SiteCommand.allCases.map(\.rawValue).joined(separator: ", ")
             showPrompt(target: currentBrowser, newWindow: false, message: "Unknown command “\(name)”. Use: \(known).")
@@ -126,23 +126,57 @@ import WebKit
         }
     }
 
-    func run(_ command: SiteCommand, on site: Site) {
+    /// Unlike a URL open, the CLI request hasn't activated lowkey. Reply only after
+    /// ordering the window so the caller may request activation without raising a stale key window.
+    func handle(_ request: ControlRequest) async -> String {
+        guard let site = store.config.site(alias: request.alias) else { return "unknown site" }
+        switch request.command {
+        case .page(.status, let args):
+            let browser = siteWindows[site.id], window = browser?.window
+            let status = WindowStatus(alias: site.alias, open: window != nil, visible: window?.isVisible == true,
+                                      minimized: window?.isMiniaturized == true, focused: NSApp.isActive && window?.isKeyWindow == true,
+                                      loading: browser?.webView.isLoading == true)
+            return "output:" + status.output(json: args == ["--json"])
+        case .page(let command, let args):
+            guard let browser = siteWindows[site.id], let url = site.url else { return "window not open" }
+            if command == .wait && browser.pendingDocument { return "pending" }
+            return await PageControls.run(command, args: args, view: browser.webView, site: url)
+        case .click(let label):
+            guard let browser = siteWindows[site.id], let url = site.url else { return "window not open" }
+            guard !browser.webView.isLoading else { return "page loading" }
+            return await PageClick.perform(in: browser.webView, startURL: url, label: label)
+        case .upload(let name, let bytes, let field):
+            guard let browser = siteWindows[site.id], let url = site.url else { return "window not open" }
+            guard !browser.webView.isLoading else { return "page loading" }
+            return await PageUpload.attach(in: browser.webView, startURL: url, name: name, bytes: bytes, field: field)
+        case .window(let command):
+            run(command, on: site, beforeActivation: nil)
+            if command == .hide { return "ok" }
+        }
+        guard let window = siteWindows[site.id]?.window else { return "cannot open site" }
+        return window.isVisible && !window.isMiniaturized ? "focus" : "ok"
+    }
+
+    private func run(_ command: SiteCommand, on site: Site, beforeActivation: ToggleWindowOrder?) {
         if let controller = siteWindows[site.id] {
-            controller.perform(command)
+            controller.perform(command, beforeActivation: beforeActivation)
             return
         }
         // hide/close on a site that is not open: nothing to do.
         guard command != .hide && command != .close else { return }
-        openSite(site)
+        let order = command == .toggle ? beforeActivation ?? ToggleWindowOrder() : nil
+        if let window = openSite(site)?.window {
+            order?.restoreBackgroundWindows(except: window)
+        }
     }
 
     /// All existing saved-site windows move in one direction, rather than exchanging visibility.
     /// Unopened aliases and ordinary/default-profile windows are intentionally untouched.
     private func toggleSavedWindows() {
         let controllers = Array(siteWindows.values)
-        let action = WindowToggle.groupAction(visibleWindows: controllers.map {
+        let action = WindowToggle.groupAction(frontmostWindows: controllers.map {
             guard let window = $0.window else { return false }
-            return window.isVisible && !window.isMiniaturized
+            return NSApp.isActive && window.isKeyWindow && window.isVisible && !window.isMiniaturized
         })
         for controller in controllers {
             switch action {
@@ -193,6 +227,14 @@ import WebKit
     }
 
     // MARK: Address prompt
+
+    func showPromptFromDock() {
+        if prompt.isVisible {
+            prompt.makeKeyAndOrderFront(nil) // Preserve text and the original navigation target.
+        } else {
+            showPrompt(target: currentBrowser, newWindow: false)
+        }
+    }
 
     func showPrompt(target: WebWindowController?, newWindow: Bool, prefill: String? = nil,
                     message: String? = nil, inCurrentProfile: Bool = false) {

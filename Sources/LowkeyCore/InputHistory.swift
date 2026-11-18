@@ -58,11 +58,13 @@ public enum Suggestions {
     /// Saved sites first, then history. Original spelling outranks layout variants;
     /// prefixes outrank substrings. Ties preserve site order / newest-first history.
     public static func make(query: String, sites: [Site], history: InputHistory, limit: Int = 8) -> [Suggestion] {
-        let queries = KeyboardLayoutSwap.variants(of: query.trimmingCharacters(in: .whitespacesAndNewlines))
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return sites.prefix(max(0, limit)).map(Suggestion.site) }
+        let queries = KeyboardLayoutSwap.variants(of: trimmed)
         func rank(_ text: String, preferPrefix: Bool = false) -> Int? {
             let text = text.lowercased()
-            for (index, q) in queries.enumerated() where q.isEmpty || text.contains(q) {
-                return index * 2 + (preferPrefix && !q.isEmpty && text.hasPrefix(q) ? 0 : 1)
+            for (index, q) in queries.enumerated() where text.contains(q) {
+                return index * 2 + (preferPrefix && text.hasPrefix(q) ? 0 : 1)
             }
             return nil
         }

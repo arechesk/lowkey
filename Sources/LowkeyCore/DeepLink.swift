@@ -5,6 +5,8 @@ import Foundation
 public enum SiteCommand: String, CaseIterable, Sendable {
     /// Show the site window; load the start page when the window is new.
     case open
+    /// Show the site and load its configured start URL, even if its window already exists.
+    case rewind
     /// Hide a visible window, or show/create the saved-site window.
     case toggle
     case reload

@@ -14,6 +14,9 @@ for (key, expected) in ["CFBundleName": "lowkey", "CFBundleDisplayName": "lowkey
                         "LSMinimumSystemVersion": "14.0"] {
     guard info[key] as? String == expected else { fail("Unexpected \(key)") }
 }
+guard FileManager.default.isExecutableFile(atPath: app.appendingPathComponent("Contents/Helpers/lowkeyctl").path) else {
+    fail("Missing lowkeyctl executable")
+}
 let types = info["CFBundleURLTypes"] as? [[String: Any]] ?? []
 guard types.contains(where: { ($0["CFBundleURLSchemes"] as? [String])?.contains("lowkey") == true }) else {
     fail("Missing lowkey deep-link scheme")

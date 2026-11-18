@@ -3,37 +3,42 @@ import LowkeyCore
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var controller: AppController!
-    private var handledURL = false
-    private var flagsMonitor: Any?
+    private var controlPort: ControlPort?
+    private var localEventMonitor: Any?
+    private var beforeActivation: ToggleWindowOrder?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         controller = AppController()
+        controlPort = ControlPort(controller: controller)
+        if controlPort == nil { NSLog("lowkey: local control port unavailable") }
         NSApp.mainMenu = makeMainMenu()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            self?.controller.setCommandHeld(event.modifierFlags.contains(.command))
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.flagsChanged, .keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] event in
+            if event.type == .flagsChanged {
+                self?.controller.setCommandHeld(event.modifierFlags.contains(.command))
+            } else {
+                self?.beforeActivation = nil
+            }
             return event
         }
-        // Started without a deep link: show the prompt. URL events at launch arrive shortly after this.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-            guard let self else { return }
-            #if DEBUG
-            // Development builds: LOWKEY_DEBUG_OPEN=settings opens Settings for visual checks.
-            if ProcessInfo.processInfo.environment["LOWKEY_DEBUG_OPEN"] == "settings" {
-                self.controller.showSettings()
-                return
-            }
-            #endif
-            guard !self.handledURL, self.controller.allBrowsers.isEmpty else { return }
-            self.controller.showPrompt(target: nil, newWindow: false)
+        #if DEBUG
+        // Development builds: LOWKEY_DEBUG_OPEN=settings opens Settings for visual checks.
+        if ProcessInfo.processInfo.environment["LOWKEY_DEBUG_OPEN"] == "settings" {
+            controller.showSettings()
         }
+        #endif
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        handledURL = true
-        for url in urls { controller.handle(url: url) }
+        for url in urls {
+            let snapshot = ToggleWindowOrder.recentActivation(beforeActivation)
+            beforeActivation = nil
+            controller.handle(url: url, beforeActivation: snapshot)
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -42,13 +47,18 @@ import LowkeyCore
         controller.allBrowsers.forEach { $0.savePlacement() }
     }
 
+    func applicationWillBecomeActive(_ notification: Notification) {
+        beforeActivation = ToggleWindowOrder()
+    }
+
     func applicationDidResignActive(_ notification: Notification) {
+        beforeActivation = nil
         controller.setCommandHeld(false)
     }
 
-    /// Dock click with nothing on screen: the prompt (hidden sites open by alias).
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { controller.showPrompt(target: nil, newWindow: false) }
+    /// A Dock click opens the address prompt even when a site window is visible.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows _: Bool) -> Bool {
+        controller.showPromptFromDock()
         return false
     }
 

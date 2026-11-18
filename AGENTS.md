@@ -11,8 +11,11 @@
 - Never publish credentials, private configuration, profiles or design material.
   `/design/`, `.build/`, `build/` and `dist/` are ignored. No discarded prototypes
   or design experiments belong in git history.
-- Do not send synthetic keystrokes while the user works. Do not restart their
-  browser or replace its running bundle without permission.
+- Do not send synthetic keystrokes while the user works. While `version.env` is
+  below 0.5.0, run `Scripts/run.sh` after verified app changes. It stops running
+  lowkey copies, replaces `/Applications/lowkey.app` with the development build,
+  and starts it without asking again. At 0.5.0 and later, ask before restarting
+  or replacing the installed bundle.
 - Tests and screenshots use temporary configuration and random site UUIDs or
   nonpersistent WebKit stores. `LOWKEY_CONFIG` isolates config and input history,
   NOT the default WebKit store. Never use real accounts or pages for screenshots.

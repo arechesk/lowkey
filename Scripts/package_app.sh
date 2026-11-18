@@ -22,19 +22,25 @@ fi
 
 # The native build system writes each architecture to .build/<arch>-apple-macosx/<conf>.
 BINARIES=()
+CLI_BINARIES=()
 for ARCH in "${ARCH_LIST[@]}"; do
   swift build -c "$CONF" --arch "$ARCH" --build-system native
-  BINARIES+=("$(swift build -c "$CONF" --arch "$ARCH" --build-system native --show-bin-path)/Lowkey")
+  BIN_DIR=$(swift build -c "$CONF" --arch "$ARCH" --build-system native --show-bin-path)
+  BINARIES+=("$BIN_DIR/Lowkey")
+  CLI_BINARIES+=("$BIN_DIR/lowkeyctl")
 done
 "$ROOT/Scripts/build_icon.sh" "$ROOT/.build/Icon.icns"
 
 mkdir -p "$OUTPUT_DIR"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers"
+CLI="$APP/Contents/Helpers/lowkeyctl"
+lipo -create "${CLI_BINARIES[@]}" -output "$CLI"
+lipo "$CLI" -verify_arch "${ARCH_LIST[@]}"
 lipo -create "${BINARIES[@]}" -output "$APP/Contents/MacOS/Lowkey"
 for ARCH in "${ARCH_LIST[@]}"; do lipo "$APP/Contents/MacOS/Lowkey" -verify_arch "$ARCH"; done
 # Release builds drop debug-map paths (local home and build paths) before signing.
-if [[ "$CONF" == release ]]; then xcrun strip -S "$APP/Contents/MacOS/Lowkey"; fi
+if [[ "$CONF" == release ]]; then xcrun strip -S "$APP/Contents/MacOS/Lowkey" "$CLI"; fi
 cp "$ROOT/.build/Icon.icns" "$APP/Contents/Resources/Icon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -80,8 +86,10 @@ PLIST
 
 xattr -cr "$APP"
 if [[ -n "${APP_IDENTITY:-}" && "${SIGNING_MODE:-}" != adhoc ]]; then
+  codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" "$CLI"
   codesign --force --timestamp --options runtime --entitlements "$ROOT/.build/Lowkey.entitlements" --sign "$APP_IDENTITY" "$APP"
 else
+  codesign --force --sign - "$CLI"
   codesign --force --sign - --entitlements "$ROOT/.build/Lowkey.entitlements" "$APP"
 fi
 echo "Created $APP"

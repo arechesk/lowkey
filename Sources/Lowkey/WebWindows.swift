@@ -195,7 +195,10 @@ enum WindowKind: Equatable {
         download.delegate = DownloadManager.shared
     }
 
+    private(set) var pendingDocument = false
+
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        pendingDocument = true
         pageColorReady = false
         pageAppearanceTask?.cancel()
     }
@@ -206,6 +209,7 @@ enum WindowKind: Equatable {
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        pendingDocument = false
         profileLocation = nil
         pageColorReady = true
         schedulePageAppearance()
@@ -214,6 +218,7 @@ enum WindowKind: Equatable {
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        pendingDocument = false
         let error = error as NSError
         if error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled { return }
         // 102: the load turned into a download or was cancelled by policy.
@@ -354,16 +359,28 @@ enum WindowKind: Equatable {
 
     func goToStart() { load(startURL) }
 
-    func perform(_ command: SiteCommand) {
+    func perform(_ command: SiteCommand, beforeActivation: ToggleWindowOrder?) {
         switch command {
         case .open: show()
+        case .rewind:
+            goToStart()
+            if window?.isMiniaturized == true { window?.deminiaturize(nil) }
+            show()
         case .toggle:
             guard let window else { return }
-            switch WindowToggle.action(isVisible: window.isVisible, isMiniaturized: window.isMiniaturized) {
-            case .hide: hide()
+            let order = beforeActivation ?? ToggleWindowOrder()
+            switch WindowToggle.action(isVisible: window.isVisible, isMiniaturized: window.isMiniaturized,
+                                       isFrontmost: beforeActivation == nil && order.isFrontmost(window)) {
+            case .hide:
+                order.hide(window) { hide() }
             case .show:
-                if window.isMiniaturized { window.deminiaturize(nil) }
-                show()
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
+                    show()
+                } else if !order.raiseOnly(window) {
+                    show()
+                }
+                order.restoreBackgroundWindows(except: window)
             }
         case .reload: reloadPage()
         case .back: webView.goBack()

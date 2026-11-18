@@ -32,7 +32,7 @@ struct AddressPanelTests {
             (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap { fields($0) }
         }
         let initial = rows(content)
-        #expect(initial.count == 3)
+        #expect(initial.map { $0.rootView.suggestion } == sites.map(Suggestion.site))
         #expect(initial.allSatisfy { !$0.rootView.selected })
         #expect(Set(initial.map { $0.rootView.badgeWidth }).count == 1)
         #expect(initial.allSatisfy { abs($0.frame.height - PickerMetrics.rowHeight) < 0.01 })
@@ -42,7 +42,7 @@ struct AddressPanelTests {
         let field = try #require(editable)
         let editor = NSTextView()
         #expect(panel.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveDown(_:))))
-        #expect(rows(content).map { $0.rootView.selected } == [true, false, false])
+        #expect(rows(content).map { $0.rootView.selected } == [true, false])
         #expect(panel.control(field, textView: editor, doCommandBy: #selector(NSResponder.moveUp(_:))))
         #expect(rows(content).allSatisfy { !$0.rootView.selected })
         #expect(app.allBrowsers.isEmpty)
@@ -56,9 +56,18 @@ struct AddressPanelTests {
             try png.write(to: output.appendingPathComponent("lowkey-address.png"))
         }
 
+        func query(_ text: String) {
+            field.stringValue = text
+            panel.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: field))
+        }
+        query("demo")
+        #expect(rows(content).map { $0.rootView.suggestion } == [.history("https://example.com/demo")])
+        query("")
+        #expect(rows(content).map { $0.rootView.suggestion } == sites.map(Suggestion.site))
+        query("demo")
         let history = try #require(rows(content).first { if case .history = $0.rootView.suggestion { return true }; return false })
         history.rootView.onRemove()
-        #expect(rows(content).count == 2)
+        #expect(rows(content).isEmpty)
         #expect(store.history.entries.isEmpty)
         #expect(store.config.sites == sites)
     }

@@ -37,6 +37,14 @@ if it is enabled. Include the version, macOS version and a minimal local reprodu
 - `lowkey://alias/command` controls a saved site's window/navigation. It cannot run
   JavaScript or shell commands. Another local application may invoke these links;
   do not treat possession of an alias as authentication.
+- Local processes in your login session can use `lowkeyctl ALIAS click` to act with an
+  open site's existing sign-in. The alias is not a secret. Clicks are not exposed
+  to URL handlers or a network listener. The helper accepts a literal label, not
+  page scripts or selectors, and requires the saved site's origin in the main frame.
+  `lowkeyctl ALIAS upload FILE` uses the same origin restriction. The helper reads
+  the named file with the caller's permissions and sends its basename and contents;
+  lowkey never opens a path from IPC. Selecting a file gives its contents to the
+  page, which may upload them even if the form has not been submitted.
 - Closing a window retains cookies. Removing a saved site in Settings requests
   deletion of its website-data profile. Uninstalling the application alone does
   not erase configuration, history or WebKit data.
