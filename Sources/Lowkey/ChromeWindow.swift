@@ -64,7 +64,8 @@ import LowkeyCore
         }
         let color: NSColor
         if !isEnabled { color = NSColor(tokens.muted, alpha: 0.35) }
-        else if hovering && (glyph == .close || glyph == .terminate) { color = NSColor(srgbRed: 0.71, green: 0.33, blue: 0.25, alpha: 1) }
+        // On a page color the fixed red can match the tint; the computed ink stays readable.
+        else if hovering && (glyph == .close || glyph == .terminate) && !tokens.isTinted { color = NSColor(srgbRed: 0.71, green: 0.33, blue: 0.25, alpha: 1) }
         else { color = NSColor(hovering ? tokens.ink : tokens.muted) }
         let side = min(bounds.height - 2, 14.4)
         glyph.draw(in: NSRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side),
@@ -261,7 +262,7 @@ import LowkeyCore
         let center = ThemeCenter.shared
         let page = pageTheme
         let tokens = center.stripTokens(page: page)
-        strip.appearance = center.chromeAppearance(page: page)
+        strip.appearance = center.stripAppearance(page: page)
         // In Tint mode the separator takes the strip color, so no line shows under the strip.
         let tinted = center.appearance.mode == .tint
         backgroundColor = NSColor(tokens.panel)

@@ -150,7 +150,11 @@ import BobukUI
         position()
     }
 
+    /// The info row shows an error message, which keeps its own color on theme changes.
+    private var infoShowsError = false
+
     private func setInfo(message: String?) {
+        infoShowsError = message != nil
         if let message {
             infoGlyph.isHidden = true
             infoLabel.stringValue = message
@@ -314,6 +318,7 @@ import BobukUI
         background.palette = tokens.pickerPalette
         arrow.textColor = NSColor(tokens.accent)
         field.textColor = NSColor(tokens.ink)
+        if !infoShowsError { infoLabel.textColor = NSColor(tokens.muted) }
         for separator in [infoSeparator, listSeparator, footerSeparator] { separator.needsDisplay = true }
         infoGlyph.needsDisplay = true
         if isVisible { refresh() }

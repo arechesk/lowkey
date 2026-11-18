@@ -96,5 +96,7 @@ import Testing
         #expect(onDark.ink == ThemeTokens.lightInk)
         #expect(onDark.accent == accent)
         #expect(onDark.hover == dark.mixed(with: ThemeTokens.lightInk, 0.07))
+        #expect(onLight.isTinted && onDark.isTinted)
+        #expect(!ThemeTokens(colors: palette).isTinted)
     }
 }

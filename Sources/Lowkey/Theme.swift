@@ -105,6 +105,13 @@ extension NSView {
         NSAppearance(named: tokens(page: page).isDark ? .darkAqua : .aqua)
     }
 
+    /// Appearance for the controls of the window strip. In Tint mode it follows the tint
+    /// (with its dead band, or the system before the first tint), not the palette panel.
+    func stripAppearance(page: PageTheme) -> NSAppearance? {
+        guard appearance.mode == .tint else { return chromeAppearance(page: page) }
+        return NSAppearance(named: isDark(page: page) ? .darkAqua : .aqua)
+    }
+
     /// Appearance for the Settings window: the chosen mode, or the system one.
     var windowAppearance: NSAppearance? {
         [.tint, .page, .system].contains(appearance.mode) ? nil : NSAppearance(named: isDark ? .darkAqua : .aqua)
