@@ -50,9 +50,15 @@ public struct Site: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
+/// How lowkey's chrome picks its colors.
+/// - `tint` (default): the window strip takes the page color: the site's `theme-color` first,
+///   then the page background; the last usable color is kept. The rest of the chrome uses the
+///   light or dark palette picked from that color, or from the system before the first color.
+/// - `page`: follow each page's background (then `theme-color`) to pick the light or dark palette;
+///   use System when no page color is available.
+/// - `system`, `light`, `dark`: the palette by the system, or always light or dark.
 public enum ThemeMode: String, Codable, CaseIterable, Sendable {
-    /// Follow each page's background; use System when no page color is available.
-    case page, system, light, dark
+    case tint, page, system, light, dark
 }
 
 public struct ThemeColors: Codable, Equatable, Sendable {
@@ -73,7 +79,7 @@ public struct AppearanceConfig: Codable, Equatable, Sendable {
     public var light: ThemeColors
     public var dark: ThemeColors
 
-    public init(mode: ThemeMode = .page, light: ThemeColors = ThemePreset.amber.colors(dark: false),
+    public init(mode: ThemeMode = .tint, light: ThemeColors = ThemePreset.amber.colors(dark: false),
                 dark: ThemeColors = ThemePreset.amber.colors(dark: true)) {
         self.mode = mode
         self.light = light
@@ -84,7 +90,7 @@ public struct AppearanceConfig: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        mode = try c.decodeIfPresent(ThemeMode.self, forKey: .mode) ?? .page
+        mode = try c.decodeIfPresent(ThemeMode.self, forKey: .mode) ?? .tint
         light = Self.valid(try c.decodeIfPresent(ThemeColors.self, forKey: .light)) ?? ThemePreset.amber.colors(dark: false)
         dark = Self.valid(try c.decodeIfPresent(ThemeColors.self, forKey: .dark)) ?? ThemePreset.amber.colors(dark: true)
     }
@@ -106,17 +112,22 @@ public struct Config: Codable, Equatable, Sendable {
         self.appearance = appearance
     }
 
+    /// Version 2 added the Tint mode; older files move a saved Page mode to Tint once.
+    public static let version = 2
+
     enum CodingKeys: String, CodingKey { case version, sites, appearance }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 0
         sites = try c.decodeIfPresent([Site].self, forKey: .sites) ?? []
         appearance = try c.decodeIfPresent(AppearanceConfig.self, forKey: .appearance) ?? AppearanceConfig()
+        if version < 2 && appearance.mode == .page { appearance.mode = .tint }
     }
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(1, forKey: .version)
+        try c.encode(Self.version, forKey: .version)
         try c.encode(sites, forKey: .sites)
         try c.encode(appearance, forKey: .appearance)
     }

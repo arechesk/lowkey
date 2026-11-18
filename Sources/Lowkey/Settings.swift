@@ -233,6 +233,7 @@ private struct AppearancePane: View {
         let tokens = ThemeTokens(colors: model.colors)
         Form {
             Picker("Mode", selection: $model.draft.appearance.mode) {
+                Text("Tint").tag(ThemeMode.tint)
                 Text("Page").tag(ThemeMode.page)
                 Text("System").tag(ThemeMode.system)
                 Text("Light").tag(ThemeMode.light)

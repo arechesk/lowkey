@@ -57,14 +57,15 @@ import LowkeyCore
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let tokens = lowkeyTokens
+        let tokens = lowkeyStripTokens
         if isEnabled && (hovering || pressed) {
             NSColor(tokens.ink, alpha: pressed ? 0.16 : 0.08).setFill()
             NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 0), xRadius: 3, yRadius: 3).fill()
         }
         let color: NSColor
         if !isEnabled { color = NSColor(tokens.muted, alpha: 0.35) }
-        else if hovering && (glyph == .close || glyph == .terminate) { color = NSColor(srgbRed: 0.71, green: 0.33, blue: 0.25, alpha: 1) }
+        // On a page color the fixed red can match the tint; the computed ink stays readable.
+        else if hovering && (glyph == .close || glyph == .terminate) && !tokens.isTinted { color = NSColor(srgbRed: 0.71, green: 0.33, blue: 0.25, alpha: 1) }
         else { color = NSColor(hovering ? tokens.ink : tokens.muted) }
         let side = min(bounds.height - 2, 14.4)
         glyph.draw(in: NSRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side),
@@ -148,12 +149,7 @@ import LowkeyCore
         }
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        let tokens = lowkeyTokens
-        NSColor(tokens.panel).setFill()
-        bounds.fill()
-    }
-
+    // The window paints the strip's layer, so a Tint color change can animate.
 }
 
 /// A titled, resizable window with the system title bar hidden and Lowkey's strip in its place.
@@ -168,15 +164,33 @@ import LowkeyCore
         }
     }
 
+    /// The page color for Tint mode; kept across navigations, nil before the first page color.
+    var tint: RGB? {
+        didSet {
+            guard tint != oldValue else { return }
+            tintIsDark = tint.map { PageAppearance.isDark(background: $0, previous: tintIsDark) }
+            applyTheme(animated: ThemeCenter.shared.appearance.mode == .tint)
+            NotificationCenter.default.post(name: Self.pageThemeDidChange, object: self)
+        }
+    }
+    private var tintIsDark: Bool?
+
+    var pageTheme: PageTheme { PageTheme(isDark: pageIsDark, tint: tint, tintIsDark: tintIsDark) }
+
+    /// Duration of a Tint color change on the strip, the separator and the window background.
+    static let tintAnimation: CFTimeInterval = 0.2
+
     let accentBar = AccentBar()
     let strip: ChromeStrip
     /// Place the window's content here.
     let body = NSView()
-    private let separator = NSBox()
+    private let separator = NSView()
     private var themeObserver: NSObjectProtocol?
 
     init(contentRect: NSRect, trailing: [GlyphButton]) {
         strip = ChromeStrip(trailing: trailing)
+        strip.wantsLayer = true
+        separator.wantsLayer = true
         super.init(contentRect: contentRect,
                    styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                    backing: .buffered, defer: false)
@@ -191,9 +205,8 @@ import LowkeyCore
         }
 
         let root = NSView()
+        root.wantsLayer = true
         accentBar.translatesAutoresizingMaskIntoConstraints = false
-        separator.boxType = .custom
-        separator.borderWidth = 0
         separator.translatesAutoresizingMaskIntoConstraints = false
         body.translatesAutoresizingMaskIntoConstraints = false
         for view in [body, accentBar, strip, separator] { root.addSubview(view) }
@@ -245,12 +258,18 @@ import LowkeyCore
 
     @objc private func fullScreenChanged() { hideTitlebarContainer() }
 
-    func applyTheme() {
+    func applyTheme(animated: Bool = false) {
         let center = ThemeCenter.shared
-        let tokens = center.tokens(pageIsDark: pageIsDark)
-        strip.appearance = center.chromeAppearance(pageIsDark: pageIsDark)
-        separator.fillColor = NSColor(tokens.stroke)
+        let page = pageTheme
+        let tokens = center.stripTokens(page: page)
+        strip.appearance = center.stripAppearance(page: page)
+        // In Tint mode the separator takes the strip color, so no line shows under the strip.
+        let tinted = center.appearance.mode == .tint
         backgroundColor = NSColor(tokens.panel)
+        paint(strip, tokens.panel, animated: animated)
+        paint(separator, tinted ? tokens.panel : tokens.stroke, animated: animated)
+        // The root layer covers the window background; it carries the same color so it can animate.
+        if let root = contentView { paint(root, tokens.panel, animated: animated) }
         for view in [accentBar, strip, strip.closeButton] as [NSView] { view.needsDisplay = true }
         strip.trailing.forEach { $0.needsDisplay = true }
         strip.subviews.forEach { $0.needsDisplay = true }
@@ -260,5 +279,23 @@ import LowkeyCore
             origin.needsDisplay = true
             origin.subviews.forEach { $0.needsDisplay = true }
         }
+    }
+
+    private func paint(_ view: NSView, _ color: RGB, animated: Bool) {
+        guard let layer = view.layer else { return }
+        let target = NSColor(color).cgColor
+        // An unchanged color keeps a running animation.
+        if let old = layer.backgroundColor, old == target { return }
+        let current = layer.presentation()?.backgroundColor ?? layer.backgroundColor
+        layer.removeAnimation(forKey: "tint")
+        if animated, let current {
+            let animation = CABasicAnimation(keyPath: "backgroundColor")
+            animation.fromValue = current
+            animation.toValue = target
+            animation.duration = Self.tintAnimation
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            layer.add(animation, forKey: "tint")
+        }
+        layer.backgroundColor = target
     }
 }

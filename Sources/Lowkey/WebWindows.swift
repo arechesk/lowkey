@@ -79,6 +79,10 @@ enum WindowKind: Equatable {
             self.chrome.pageIsDark = color?.rgb.map {
                 PageAppearance.isDark(background: $0, previous: self.chrome.pageIsDark)
             }
+            // Tint, in every mode so a switch in Settings shows at once: theme-color first.
+            // With no usable color the previous one stays; navigation never clears it.
+            self.chrome.tint = PageAppearance.tint(themeColor: hint?.pageColor, background: background?.pageColor,
+                                                   previous: self.chrome.tint)
         }
     }
 

@@ -167,7 +167,7 @@ private let ha = Site(alias: "HA", title: "Home Assistant", startURL: "https://h
         let json = #"{"sites":[{"alias":"HA","startURL":"https://homeassistant.local"}]}"#
         let config = try JSONDecoder().decode(Config.self, from: Data(json.utf8))
         #expect(config.site(alias: "ha")?.externalLinks == .defaultBrowser)
-        #expect(config.appearance.mode == .page)
+        #expect(config.appearance.mode == .tint)
     }
 
     @Test func roundTripsThroughFile() throws {

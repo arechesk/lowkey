@@ -54,6 +54,8 @@ public struct ThemeTokens: Equatable, Sendable {
     public let keyInk: RGB
     /// The accent strip is hard to see against the panel.
     public let lowAccentContrast: Bool
+    /// The panel is a page color (Tint mode), so fixed colors such as the close red may vanish on it.
+    public let isTinted: Bool
 
     static let darkInk = RGB(hex: "#222a2e")!
     static let lightInk = RGB(hex: "#eef1ec")!
@@ -63,8 +65,17 @@ public struct ThemeTokens: Equatable, Sendable {
     }
 
     public init(colors: ThemeColors) {
-        let panel = RGB(hex: colors.panel) ?? RGB(hex: "#f7f8f5")!
-        let accent = RGB(hex: colors.accent) ?? RGB(hex: "#885500")!
+        self.init(panel: RGB(hex: colors.panel) ?? RGB(hex: "#f7f8f5")!,
+                  accent: RGB(hex: colors.accent) ?? RGB(hex: "#885500")!, isTinted: false)
+    }
+
+    /// A panel tinted with a page color: the accent comes from the palette, the rest from the tint.
+    public init(tint: RGB, colors: ThemeColors) {
+        self.init(panel: tint, accent: ThemeTokens(colors: colors).accent, isTinted: true)
+    }
+
+    private init(panel: RGB, accent: RGB, isTinted: Bool) {
+        self.isTinted = isTinted
         let ink = Self.ink(on: panel)
         self.panel = panel
         self.accent = accent
