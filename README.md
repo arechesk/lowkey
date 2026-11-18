@@ -118,7 +118,9 @@ One Light/Dark and Rosé Pine. Settings uses System in Page mode.
 
 ## Command line
 
-Run the helper directly (not via `open`) to address a saved site without opening a URL:
+To use `lowkeyctl` by name in Terminal, follow the [PATH setup and command reference](https://bobuk.io/apps/lowkey/lowkeyctl/). The setup links the helper from `/Applications/lowkey.app` into a user bin directory; it does not require sudo or modify shell startup files.
+
+Alternatively, run the helper directly (not via `open`) to address a saved site without opening a URL:
 
 ```sh
 /Applications/lowkey.app/Contents/Helpers/lowkeyctl HA toggle
