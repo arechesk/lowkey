@@ -27,8 +27,9 @@ import BobukUI
     private let footerSeparator = Separator()
     private var themeObserver: NSObjectProtocol?
     private var pageThemeObserver: NSObjectProtocol?
-    var pageIsDark: Bool? { target?.chrome.pageIsDark }
-    private var themeTokens: ThemeTokens { ThemeCenter.shared.tokens(pageIsDark: pageIsDark) }
+    /// Palette colors only: light or dark by the target's page, never its Tint color as panel.
+    var pageTheme: PageTheme { target?.chrome.pageTheme ?? PageTheme() }
+    private var themeTokens: ThemeTokens { ThemeCenter.shared.tokens(page: pageTheme) }
 
     static let width: CGFloat = 560
 
@@ -309,7 +310,7 @@ import BobukUI
 
     private func applyTheme() {
         let tokens = themeTokens
-        appearance = ThemeCenter.shared.chromeAppearance(pageIsDark: pageIsDark)
+        appearance = ThemeCenter.shared.chromeAppearance(page: pageTheme)
         background.palette = tokens.pickerPalette
         arrow.textColor = NSColor(tokens.accent)
         field.textColor = NSColor(tokens.ink)

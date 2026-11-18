@@ -63,8 +63,16 @@ public struct ThemeTokens: Equatable, Sendable {
     }
 
     public init(colors: ThemeColors) {
-        let panel = RGB(hex: colors.panel) ?? RGB(hex: "#f7f8f5")!
-        let accent = RGB(hex: colors.accent) ?? RGB(hex: "#885500")!
+        self.init(panel: RGB(hex: colors.panel) ?? RGB(hex: "#f7f8f5")!,
+                  accent: RGB(hex: colors.accent) ?? RGB(hex: "#885500")!)
+    }
+
+    /// A panel tinted with a page color: the accent comes from the palette, the rest from the tint.
+    public init(tint: RGB, colors: ThemeColors) {
+        self.init(panel: tint, accent: ThemeTokens(colors: colors).accent)
+    }
+
+    private init(panel: RGB, accent: RGB) {
         let ink = Self.ink(on: panel)
         self.panel = panel
         self.accent = accent

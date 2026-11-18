@@ -96,7 +96,7 @@ automatically. Alias matching ignores case; a stable UUID identifies the profile
     "externalLinks": "defaultBrowser",
     "extraOrigins": ["https://ha.example.com", "*.nabu.casa"]
   }],
-  "appearance": { "mode": "page" }
+  "appearance": { "mode": "tint" }
 }
 ```
 
@@ -106,15 +106,21 @@ links stay in lowkey or open in the default browser, according to the site's set
 Redirects and script navigation are not automatically sent outside, to avoid breaking
 sign-in. Ordinary `target="_blank"` links do not create tabs.
 
-Appearance modes: Page (default), System, Light and Dark. Page mode reads each page's
+Appearance modes: Tint (default), Page, System, Light and Dark. In Tint mode the window
+strip takes the page color: the site's `theme-color` first, then the page background
+(colors with alpha below 0.9 do not count). When the page gives no usable color, for
+example while a new page loads, the window keeps its last color; before the first one the
+strip uses the palette panel. No line shows under the strip, its icons are derived from
+the tint, and a color change animates briefly. The accent line, the address prompt and
+popup origin bars keep the palette, light or dark by the tint. Page mode reads each page's
 WebKit background, with `theme-color` as a fallback, and chooses the light/dark palette
 per window. System is used without a usable color. A debounce/dead band reduces
-flicker. Image/video/canvas-heavy pages may look different from their detected background;
+flicker. A config saved before Tint existed with mode `page` moves to Tint once. Image/video/canvas-heavy pages may look different from their detected background;
 this is not screenshot analysis. lowkey never recolors site content or forces its CSS.
 
 Light/dark palettes are independent, with editable panel/accent colors. Presets include
 Amber, Sage, Ocean, Terracotta, Dracula, Nord, Catppuccin, Gruvbox, Solarized, Tokyo Night,
-One Light/Dark and Rosé Pine. Settings uses System in Page mode.
+One Light/Dark and Rosé Pine. Settings uses System in Tint and Page modes.
 
 ## Command line
 
