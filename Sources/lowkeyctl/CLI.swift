@@ -2,7 +2,7 @@ import AppKit
 import LowkeyCore
 
 @main struct CLI {
-    static let pageUsage = "\n       lowkeyctl <site-alias> <inspect|status> [--json]\n       lowkeyctl <site-alias> wait [label] [--timeout seconds]\n       lowkeyctl <site-alias> <fill|select> <label> <value>"
+    static let pageUsage = "\n       lowkeyctl <site-alias> <inspect|status> [--json]\n       lowkeyctl <site-alias> wait [label] [--timeout seconds]\n       lowkeyctl <site-alias> <fill|select> <label> <value>\n       lowkeyctl <site-alias> save-pdf <file.pdf>"
     static let usage = "Usage: lowkeyctl <site-alias> <toggle|open|hide|rewind>\n       lowkeyctl <site-alias> click \"<button or link label>\"\n       lowkeyctl <site-alias> upload <file> [--field \"<field label>\"]" + pageUsage
 
     static func readUpload(_ path: String, alias: String, field: String?) -> ControlRequest {
@@ -31,6 +31,9 @@ import LowkeyCore
         if args.count >= 2, args[1] == "wait", let i = args.dropFirst(2).firstIndex(of: "--timeout") {
             guard i + 2 == args.count, let n = Int(args[i+1]), (1...300).contains(n) else { fail(usage, code: 64) }
             args.removeLast(2); waitSeconds = n
+        }
+        if args.count == 3, args[1] == "save-pdf" {
+            args[2] = URL(fileURLWithPath: (args[2] as NSString).expandingTildeInPath).standardizedFileURL.path
         }
         if args == ["--help"] || args == ["-h"] { print(usage); return }
         let request: ControlRequest
@@ -74,7 +77,7 @@ import LowkeyCore
         func send() -> String {
         var response: Unmanaged<CFData>?
         // Retry discovery, never the command: a timed-out toggle may already have run.
-        let status = CFMessagePortSendRequest(port, 1, request.payload as CFData, 1, 5, CFRunLoopMode.defaultMode.rawValue, &response)
+        let status = CFMessagePortSendRequest(port, 1, request.payload as CFData, 1, request.command.isPDFExport ? 65 : 5, CFRunLoopMode.defaultMode.rawValue, &response)
         guard status == kCFMessagePortSuccess, let bytes = response?.takeRetainedValue() else { fail("no reply from lowkey") }
         return String(decoding: bytes as Data, as: UTF8.self)
         }
@@ -86,6 +89,7 @@ import LowkeyCore
                 reply = send()
             }
         }
+        if reply.hasPrefix("PDF export failed:") { fail(reply) }
         if reply.hasPrefix("output:") { print(reply.dropFirst(7)); return }
         switch reply {
         case "ok": break

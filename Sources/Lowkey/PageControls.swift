@@ -3,6 +3,15 @@ import LowkeyCore
 
 @MainActor enum PageControls {
     static func run(_ command: PageCommand, args: [String], view: WKWebView, site: URL) async -> String {
+        if command == .savePDF {
+            let readiness = await run(.wait, args: [], view: view, site: site)
+            guard readiness == "ok" else { return readiness == "pending" ? "page loading" : readiness }
+            guard args.count == 1 else { return "invalid" }
+            do {
+                try await PagePDF.save(view, to: URL(fileURLWithPath: args[0]))
+                return "ok"
+            } catch { return "PDF export failed: \(error.localizedDescription)" }
+        }
         do {
             let result = try await view.callAsyncJavaScript(script, arguments: ["cmd": command.rawValue, "args": args, "site": site.absoluteString], in: nil, contentWorld: .defaultClient)
             return result as? String ?? "page unavailable"

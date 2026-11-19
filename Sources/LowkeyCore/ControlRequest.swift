@@ -7,6 +7,11 @@ public struct ControlRequest: Sendable {
         case page(PageCommand, [String])
         case click(String)
         case upload(name: String, bytes: Data, field: String? = nil)
+
+        public var isPDFExport: Bool {
+            if case .page(.savePDF, _) = self { return true }
+            return false
+        }
     }
     public static let maximumFileSize = 8 * 1024 * 1024
     public let command: Command
@@ -19,6 +24,7 @@ public struct ControlRequest: Sendable {
             let args = Array(arguments.dropFirst(2))
             guard args.allSatisfy({ $0.utf8.count <= 16384 && !$0.utf8.contains(0) }) else { return nil }
             switch verb {
+            case .savePDF: guard args.count == 1, args[0].hasPrefix("/"), args[0].lowercased().hasSuffix(".pdf") else { return nil }
             case .inspect, .status: guard args.isEmpty || args == ["--json"] else { return nil }
             case .wait: guard args.isEmpty || (args.count == 1 && !args[0].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) else { return nil }
             case .fill, .select: guard args.count == 2 && !args[0].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }

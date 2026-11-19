@@ -7,6 +7,12 @@ import WebKit
     /// Reported by the page: a text field, text area or editable element has focus.
     var isEditingText = false
 
+    override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
+        super.willOpenMenu(menu, with: event)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Save as PDF…", action: #selector(LowkeyActions.lowkeySavePDF(_:)), keyEquivalent: ""))
+    }
+
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.numericPad, .function])
         if flags == .command, event.type == .keyDown, !isEditingText,

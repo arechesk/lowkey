@@ -11,6 +11,7 @@ enum WindowKind: Equatable {
 
 /// Menu commands handled by web windows through the responder chain.
 @objc protocol LowkeyActions {
+    func lowkeySavePDF(_ sender: Any?)
     func lowkeyReload(_ sender: Any?)
     func lowkeyBack(_ sender: Any?)
     func lowkeyForward(_ sender: Any?)
@@ -133,6 +134,10 @@ enum WindowKind: Equatable {
 
     // MARK: Menu actions (responder chain)
 
+    @objc func lowkeySavePDF(_ sender: Any?) {
+        guard let window else { return }
+        PagePDF.chooseDestination(for: webView, in: window)
+    }
     @objc func lowkeyReload(_ sender: Any?) { reloadPage() }
     @objc func lowkeyBack(_ sender: Any?) { webView.goBack() }
     @objc func lowkeyForward(_ sender: Any?) { webView.goForward() }
@@ -144,6 +149,7 @@ enum WindowKind: Equatable {
 
     @objc func validateMenuItem(_ item: NSMenuItem) -> Bool {
         switch item.action {
+        case #selector(lowkeySavePDF(_:)): webView.url != nil && !webView.isLoading
         case #selector(lowkeyBack(_:)): webView.canGoBack
         case #selector(lowkeyForward(_:)): webView.canGoForward
         default: true

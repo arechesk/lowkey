@@ -10,6 +10,15 @@ import LowkeyCore
         #expect(decoded.alias == "HA-1")
     }
 
+    @Test func pdfRoundTrip() throws {
+        let request = try #require(ControlRequest(["HA", "save-pdf", "/tmp/Full page.pdf"]))
+        #expect(request.command.isPDFExport)
+        #expect(ControlRequest(payload: request.payload)?.command == request.command)
+        for args in [[], ["relative.pdf"], ["/tmp/page.txt"], ["/tmp/page.pdf", "extra"], ["/tmp/bad\0.pdf"]] {
+            #expect(ControlRequest(["HA", "save-pdf"] + args) == nil)
+        }
+    }
+
     @Test func uploadRoundTrip() throws {
         let file = Data([0, 255, 10, 0])
         let request = try #require(ControlRequest(alias: "HA", filename: "Файл 1.pdf", bytes: file))

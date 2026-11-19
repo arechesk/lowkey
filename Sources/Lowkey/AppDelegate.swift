@@ -134,6 +134,7 @@ import LowkeyCore
 
         let view = submenu(in: main, title: "View")
         view.addItem(item("Reload Page", #selector(LowkeyActions.lowkeyReload(_:)), "r"))
+        view.addItem(item("Save as PDF…", #selector(LowkeyActions.lowkeySavePDF(_:)), "s", [.command, .shift]))
         view.addItem(.separator())
         view.addItem(item("Back", #selector(LowkeyActions.lowkeyBack(_:)), "["))
         view.addItem(item("Forward", #selector(LowkeyActions.lowkeyForward(_:)), "]"))

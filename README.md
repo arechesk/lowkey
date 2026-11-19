@@ -145,6 +145,18 @@ disabled control return an error without clicking. Exit status 0 means the click
 dispatched, not that the website completed the action. This is a local CLI command,
 not a `lowkey://` link.
 
+Starting with lowkey 0.1.2, use **Save as PDF…** in the page context menu,
+**View → Save as PDF…** (⌘⇧S), and:
+
+```sh
+/Applications/lowkey.app/Contents/Helpers/lowkeyctl HA save-pdf ~/Desktop/page.pdf
+```
+
+This prints the entire current document to an A4 PDF, including content below the viewport,
+using the site's print styles. It does not scroll to load lazy content or expand virtualized lists.
+The menu opens a save dialog. The helper accepts a `.pdf` path (relative paths work), requires
+an open page on the saved origin, and refuses to overwrite an existing file. No print dialog appears.
+
 To attach one file to an already-open page:
 
 ```sh

@@ -1,6 +1,7 @@
 import Foundation
 
-public enum PageCommand: String, Sendable { case inspect, status, wait, fill, select }
+public enum PageCommand: String, Sendable { case inspect, status, wait, fill, select
+    case savePDF = "save-pdf" }
 
 public struct WindowStatus: Encodable {
     public let alias: String

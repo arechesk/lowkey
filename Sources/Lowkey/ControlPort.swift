@@ -10,7 +10,7 @@ private func answerControlRequest(_ port: CFMessagePort?, _ id: Int32, _ data: C
     }
     let controller = Unmanaged<AppController>.fromOpaque(info).takeUnretainedValue()
     let done = DispatchSemaphore(value: 0)
-    let deadline = DispatchTime.now() + .seconds(4)
+    let deadline = DispatchTime.now() + .seconds(request.command.isPDFExport ? 60 : 4)
     var reply = "result unknown"
     Task { @MainActor in
         if DispatchTime.now() < deadline { reply = await controller.handle(request) }
