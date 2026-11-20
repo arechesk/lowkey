@@ -1,10 +1,11 @@
 import AppKit
 import SwiftUI
 import LowkeyCore
+import BobukCore
 import BobukUI
 
 /// The ⌘L prompt: an alias or an address, with suggestions from saved sites and input history.
-@MainActor final class AddressPanel: NSPanel, NSTextFieldDelegate, PageThemeProviding {
+@MainActor final class AddressPanel: BobukPanel, NSTextFieldDelegate, PageThemeProviding {
     private unowned let app: AppController
     private weak var target: WebWindowController?
     private var newWindow = false
@@ -25,8 +26,6 @@ import BobukUI
     private let infoSeparator = Separator()
     private let listSeparator = Separator()
     private let footerSeparator = Separator()
-    private var themeObserver: NSObjectProtocol?
-    private var pageThemeObserver: NSObjectProtocol?
     /// Palette colors only: light or dark by the target's page, never its Tint color as panel.
     var pageTheme: PageTheme { target?.chrome.pageTheme ?? PageTheme() }
     private var themeTokens: ThemeTokens { ThemeCenter.shared.tokens(page: pageTheme) }
@@ -35,32 +34,22 @@ import BobukUI
 
     init(app: AppController) {
         self.app = app
-        super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 120),
-                   styleMask: [.borderless], backing: .buffered, defer: false)
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = true
-        level = .floating
-        isFloatingPanel = true
-        hidesOnDeactivate = false
-        isReleasedWhenClosed = false
-        animationBehavior = .none
-        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        // A prompt: floating, activating, on the active Space; it closes on focus loss, on app
+        // deactivation, with Esc and with ⌘W (all by ordering out).
+        super.init(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 120), kind: .prompt)
+        onCommandKey = { [weak self] _, command in
+            guard command == .text(#selector(NSText.copy(_:))) else { return false }
+            return self?.copyPageAddress() ?? false
+        }
         build()
-        themeObserver = NotificationCenter.default.addObserver(forName: ThemeCenter.didChange, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.applyTheme() }
-        }
-        pageThemeObserver = NotificationCenter.default.addObserver(forName: ChromeWindow.pageThemeDidChange, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.applyTheme() }
-        }
-        // Switching to another app dismisses the prompt.
-        NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.orderOut(nil) }
-        }
+        // Both are posted on the main thread.
+        NotificationCenter.default.addObserver(self, selector: #selector(themeDidChange),
+                                               name: ThemeCenter.didChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(themeDidChange),
+                                               name: LowkeyWindow.pageThemeDidChange, object: nil)
     }
 
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
+    @objc private func themeDidChange() { applyTheme() }
 
     private func build() {
         let stack = NSStackView()
@@ -173,52 +162,33 @@ import BobukUI
         infoSeparator.isHidden = infoRow.isHidden
     }
 
+    /// 56 points below the top of the target window, else in the upper part of the main screen.
     private func position() {
         layoutIfNeededForSize()
         let size = frame.size
         if let parent = target?.window, parent.isVisible, !parent.isMiniaturized {
-            let top = parent.frame.maxY - 56
-            setFrameOrigin(NSPoint(x: parent.frame.midX - size.width / 2, y: top - size.height))
+            setFrameOrigin(PanelPlacement.over(parent: parent.frame, size: size, inset: 56).origin)
         } else if let screen = NSScreen.main {
-            let area = screen.visibleFrame
-            setFrameOrigin(NSPoint(x: area.midX - size.width / 2, y: area.maxY - area.height * 0.28 - size.height))
+            let frame = PanelPlacement.frame(size: size, in: screen.visibleFrame,
+                                             anchor: .upper(fraction: 0.28, minimum: 0), margin: 0)
+            setFrameOrigin(frame.origin)
         }
     }
 
     /// Fits the window to its content, keeping the top edge in place.
     private func layoutIfNeededForSize() {
-        background.layoutSubtreeIfNeeded()
-        let size = background.fittingSize
-        let top = frame.maxY
-        setFrame(NSRect(x: frame.minX, y: top - size.height, width: Self.width, height: size.height), display: true)
-        invalidateShadow()
+        fitHeight(to: background, width: Self.width)
     }
 
-    override func resignKey() {
-        super.resignKey()
-        orderOut(nil)
-    }
-
-    override func cancelOperation(_ sender: Any?) { orderOut(nil) }
-
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let key = event.charactersIgnoringModifiers?.lowercased()
-        if flags == .command, key == "w" {
-            orderOut(nil)
-            return true
-        }
-        // ⌘C with nothing selected copies the current page address.
-        if flags == .command, key == "c", let editor = field.currentEditor(), editor.selectedRange.length == 0,
-           let url = target?.webView.url, url.scheme != "about" {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(url.absoluteString, forType: .string)
-            setInfo(message: nil)
-            infoLabel.stringValue = "Copied: \(url.absoluteString)"
-            return true
-        }
-        return super.performKeyEquivalent(with: event)
+    /// ⌘C with nothing selected copies the current page address.
+    private func copyPageAddress() -> Bool {
+        guard let editor = field.currentEditor(), editor.selectedRange.length == 0,
+              let url = target?.webView.url, url.scheme != "about" else { return false }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        setInfo(message: nil)
+        infoLabel.stringValue = "Copied: \(url.absoluteString)"
+        return true
     }
 
     // MARK: Suggestions
@@ -320,7 +290,7 @@ import BobukUI
         field.textColor = NSColor(tokens.ink)
         if !infoShowsError { infoLabel.textColor = NSColor(tokens.muted) }
         for separator in [infoSeparator, listSeparator, footerSeparator] { separator.needsDisplay = true }
-        infoGlyph.needsDisplay = true
+        infoGlyph.color = NSColor(tokens.muted)
         if isVisible { refresh() }
     }
 }

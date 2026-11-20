@@ -10,6 +10,10 @@ import LowkeyCore
         #expect(decoded.alias == "HA-1")
     }
 
+    @Test func portNameKeepsTheV1Format() {
+        #expect(ControlRequest.portName(pid: 4242) == "io.bobuk.lowkey.control.v1.4242")
+    }
+
     @Test func pdfRoundTrip() throws {
         let request = try #require(ControlRequest(["HA", "save-pdf", "/tmp/Full page.pdf"]))
         #expect(request.command.isPDFExport)

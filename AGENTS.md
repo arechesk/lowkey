@@ -6,28 +6,23 @@
 
 - Native macOS browser: AppKit, WebKit, SwiftUI settings. Bundle identifier
   `io.bobuk.lowkey`; use `io.bobuk` for new identifiers.
-- Repository: `bobuk-io/lowkey`. Keep documentation in English. Original code is
-  0BSD; preserve the adapted release scripts' MIT attribution in THIRD_PARTY_NOTICES.md.
-- Never publish credentials, private configuration, profiles or design material.
-  `/design/`, `.build/`, `build/` and `dist/` are ignored. No discarded prototypes
-  or design experiments belong in git history.
-- Do not send synthetic keystrokes while the user works. While `version.env` is
-  below 0.5.0, run `Scripts/run.sh` after verified app changes. It stops running
+- Repository: `bobuk-io/lowkey`. Never publish browser profiles or website data.
+- Shared UI and infrastructure come from BobukKit (`Vendor/BobukKit`, read-only); read
+  `../BobukKit/README.md` before adding windows, panels, controls, hotkeys, file stores,
+  processes or update code here, and follow `../AGENTS.md`. The release kit in
+  `Scripts/release/` is a managed copy of `../BobukKit/ReleaseKit`; never edit it here.
+- lowkey windows are `LowkeyWindow` subclasses of BobukKit's `ChromeWindow`; their ⌘W goes
+  through lowkey's menu (hide vs close for saved sites), so they keep `closesOnCommandW` off.
+- While `version.env` is below 0.5.0, run `Scripts/run.sh` after verified app changes. It stops running
   lowkey copies, replaces `/Applications/lowkey.app` with the development build,
   and starts it without asking again. At 0.5.0 and later, ask before restarting
   or replacing the installed bundle.
 - Tests and screenshots use temporary configuration and random site UUIDs or
   nonpersistent WebKit stores. `LOWKEY_CONFIG` isolates config and input history,
   NOT the default WebKit store. Never use real accounts or pages for screenshots.
-- Keep pure logic in LowkeyCore, without AppKit. Run focused tests after code
-  changes. Run the full tests for release checks. No hosted CI.
-- Releases use the shared kit in Scripts/release; read its README. App facts live
-  in release.env and version.env. The canonical kit is ../ting/Scripts/release;
-  change it there, test it and sync it here, never fork this copy.
-- Scripts/release_next.sh makes a real release. Check readiness with
-  Scripts/release/doctor.sh and test safely with Scripts/release/test_kit.sh.
-  Public binaries require Developer ID signing, notarization, stapling, local
-  tests, a universal ZIP, checksums, GitHub publication, installation at
+- Keep pure logic in LowkeyCore. Releases use the shared kit (`Scripts/release/README.md`);
+  `Scripts/release_next.sh` makes a real release. Public binaries require Developer ID
+  signing, notarization, stapling, local tests, a universal ZIP, checksums, GitHub publication, installation at
   /Applications/lowkey.app and restart, and landing deployment. No Sparkle or
   Homebrew support is currently shipped; do not claim it exists.
 - Update the landing site in all three locales when a release needs it. See

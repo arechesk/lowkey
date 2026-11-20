@@ -83,6 +83,13 @@ private let ha = Site(alias: "HA", title: "Home Assistant", startURL: "https://h
         defer { try? FileManager.default.removeItem(at: url) }
         try InputHistory(entries: ["x.com", "y.com"]).save(to: url)
         #expect(InputHistory.load(from: url).entries == ["x.com", "y.com"])
+        // The file format is a plain JSON array without escaped slashes.
+        try InputHistory(entries: ["https://a.example/x"]).save(to: url)
+        #expect(String(decoding: try Data(contentsOf: url), as: UTF8.self) == #"["https://a.example/x"]"#)
+        // Codable keeps its `entries` key and drops nothing.
+        let coded = try JSONEncoder().encode(InputHistory(entries: ["b.com"]))
+        #expect(String(decoding: coded, as: UTF8.self) == #"{"entries":["b.com"]}"#)
+        #expect(try JSONDecoder().decode(InputHistory.self, from: coded) == InputHistory(entries: ["b.com"]))
     }
 }
 

@@ -1,31 +1,39 @@
+import BobukCore
 import Foundation
 
-/// Addresses and aliases submitted in the Lowkey prompt. Not a log of page visits.
+/// Addresses and aliases submitted in the lowkey prompt. Not a log of page visits.
+/// A BobukCore `RecentList`; the file stays a plain JSON array of strings.
 public struct InputHistory: Codable, Equatable, Sendable {
     public static let limit = 1000
 
+    private var list: RecentList
+
     /// Newest first, unique (case-insensitive).
-    public private(set) var entries: [String]
+    public var entries: [String] { list.entries }
 
     public init(entries: [String] = []) {
-        self.entries = []
-        for entry in entries.reversed() { record(entry) }
+        list = RecentList(entries: entries, limit: Self.limit)
     }
 
     /// Moves the entry to the top. A removed entry comes back when submitted again.
-    public mutating func record(_ text: String) {
-        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        entries.removeAll { $0.caseInsensitiveCompare(text) == .orderedSame }
-        entries.insert(text, at: 0)
-        if entries.count > Self.limit { entries.removeLast(entries.count - Self.limit) }
+    public mutating func record(_ text: String) { list.record(text) }
+
+    public mutating func remove(_ text: String) { list.remove(text) }
+
+    public mutating func clear() { list.removeAll() }
+
+    // Codable as before: `{"entries": [...]}`, without the list's limit.
+    private enum CodingKeys: String, CodingKey { case entries }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(entries: try container.decode([String].self, forKey: .entries))
     }
 
-    public mutating func remove(_ text: String) {
-        entries.removeAll { $0.caseInsensitiveCompare(text) == .orderedSame }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(entries, forKey: .entries)
     }
-
-    public mutating func clear() { entries.removeAll() }
 
     public static func load(from url: URL) -> InputHistory {
         guard let data = try? Data(contentsOf: url),

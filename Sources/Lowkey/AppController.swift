@@ -68,7 +68,7 @@ import WebKit
     }
 
     private func saveHistory() {
-        do { try history.save(to: historyURL) } catch { NSLog("lowkey: can’t save history: \(error.localizedDescription)") }
+        do { try history.save(to: historyURL) } catch { Log.app.error("can’t save history: \(error.localizedDescription, privacy: .public)") }
     }
 }
 
@@ -300,7 +300,7 @@ import WebKit
             do {
                 try await WKWebsiteDataStore.remove(forIdentifier: id)
             } catch {
-                NSLog("lowkey: can’t remove the profile of a deleted site: \(error.localizedDescription)")
+                Log.app.error("can’t remove the profile of a deleted site: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

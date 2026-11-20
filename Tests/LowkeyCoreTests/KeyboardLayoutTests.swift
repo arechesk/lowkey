@@ -5,15 +5,7 @@ import Testing
 @Suite struct KeyboardLayoutTests {
     private let ha = Site(alias: "HA", title: "Home Assistant", startURL: "https://homeassistant.local")
 
-    @Test func swapsPhysicalKeysRatherThanTransliterating() {
-        #expect(KeyboardLayoutSwap.variants(of: "РФ").contains("ha"))
-        #expect(KeyboardLayoutSwap.variants(of: "пщщпду").contains("google"))
-        #expect(KeyboardLayoutSwap.variants(of: "шї").contains("i]"))
-        #expect(KeyboardLayoutSwap.variants(of: "і").contains("s"))
-        #expect(KeyboardLayoutSwap.variants(of: "ntktuhfv").contains("телеграм"))
-        #expect(KeyboardLayoutSwap.variants(of: "").count == 1)
-    }
-
+    // BobukCore's KeyboardLayoutSwap tests cover the variants themselves; these cover lowkey's use.
     @Test func opensAnExactAliasInAnotherLayout() {
         #expect(AddressResolver.resolve("рф", sites: [ha]) == .site(ha))
         #expect(AddressResolver.resolve("  РФ  ", sites: [ha]) == .site(ha))

@@ -34,14 +34,10 @@ struct SuggestionRow: View {
                 .accessibilityLabel(isHistory ? "History \(title)" : "Site \(badge), \(title)")
                 .accessibilityAddTraits(selected ? .isSelected : [])
                 if isHistory {
-                    Button(action: onRemove) {
-                        Image(systemName: "xmark").font(.system(size: 10, weight: .medium))
-                            .frame(width: 18, height: 22).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color(nsColor: palette.secondary))
-                    .help("Remove from history")
-                    .accessibilityLabel("Remove \(title) from history")
+                    // BobukKit's close glyph; it brightens on hover like other row actions.
+                    GlyphButton(.close, label: "Remove \(title) from history", help: "Remove from history",
+                                palette: palette, width: 18, height: 22, glyphSize: 11, hoverFill: false,
+                                action: onRemove)
                     .opacity(selected || hovering ? 1 : 0)
                     .allowsHitTesting(selected || hovering)
                     .accessibilityHidden(!(selected || hovering))

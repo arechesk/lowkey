@@ -1,4 +1,5 @@
 import AppKit
+import BobukCore
 import LowkeyCore
 
 @main struct CLI {
@@ -65,21 +66,19 @@ import LowkeyCore
             catch { fail(error.localizedDescription) }
         }
         guard target.bundleURL?.resolvingSymlinksInPath().path == app.path else { fail("another copy of lowkey is running") }
-        let name = ControlRequest.portName(pid: target.processIdentifier) as CFString
-        let deadline = ContinuousClock.now + .seconds(4)
-        var port = CFMessagePortCreateRemote(nil, name)
-        while port == nil && !target.isTerminated && ContinuousClock.now < deadline {
-            try? await Task.sleep(for: .milliseconds(50))
-            port = CFMessagePortCreateRemote(nil, name)
+        let name = ControlRequest.portName(pid: target.processIdentifier)
+        // Stop waiting early when the app quits while starting.
+        guard await MessagePortClient.waitForServer(name, timeout: 4, keepWaiting: { !target.isTerminated }) else {
+            fail("lowkey did not open its control port")
         }
-        guard let port else { fail("lowkey did not open its control port") }
         let waitUntil = ContinuousClock.now + .seconds(waitSeconds)
         func send() -> String {
-        var response: Unmanaged<CFData>?
-        // Retry discovery, never the command: a timed-out toggle may already have run.
-        let status = CFMessagePortSendRequest(port, 1, request.payload as CFData, 1, request.command.isPDFExport ? 65 : 5, CFRunLoopMode.defaultMode.rawValue, &response)
-        guard status == kCFMessagePortSuccess, let bytes = response?.takeRetainedValue() else { fail("no reply from lowkey") }
-        return String(decoding: bytes as Data, as: UTF8.self)
+            // Retry discovery, never the command: a timed-out toggle may already have run.
+            switch MessagePortClient.send(request.payload, to: name, messageID: 1, sendTimeout: 1,
+                                          timeout: request.command.isPDFExport ? 65 : 5) {
+            case .success(let bytes): return String(decoding: bytes, as: UTF8.self)
+            case .failure: fail("no reply from lowkey")
+            }
         }
         var reply = send()
         if case .page(.wait, _) = request.command {

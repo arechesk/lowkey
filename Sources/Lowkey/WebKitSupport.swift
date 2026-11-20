@@ -1,4 +1,5 @@
 import AppKit
+import BobukCore
 import LowkeyCore
 import WebKit
 
@@ -18,8 +19,8 @@ import WebKit
         if flags == .command, event.type == .keyDown, !isEditingText,
            let responder = window?.firstResponder as? NSView, responder.isDescendant(of: self) {
             switch event.keyCode {
-            case 123: if canGoBack { goBack() }; return true
-            case 124: if canGoForward { goForward() }; return true
+            case VirtualKey.left: if canGoBack { goBack() }; return true
+            case VirtualKey.right: if canGoForward { goForward() }; return true
             default: break
             }
         }
@@ -86,7 +87,8 @@ enum WebKitSupport {
 
     /// Identify Lowkey without impersonating Safari or bypassing identity-provider policy.
     static var userAgentSuffix: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        // The enclosing lowkey.app, also when the process was started through a symlink.
+        let version = AppBundle.info["CFBundleShortVersionString"] as? String ?? "0"
         return "lowkey/\(version)"
     }
 
@@ -96,16 +98,6 @@ enum WebKitSupport {
         webView.allowsMagnification = true
         webView.translatesAutoresizingMaskIntoConstraints = false
         return webView
-    }
-
-    @MainActor static func pin(_ view: NSView, in container: NSView, top: NSLayoutYAxisAnchor? = nil) {
-        container.addSubview(view)
-        NSLayoutConstraint.activate([
-            view.topAnchor.constraint(equalTo: top ?? container.topAnchor),
-            view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ])
     }
 
     /// Simple themed error page. Never offers to bypass certificate errors.
@@ -156,7 +148,7 @@ enum WebKitSupport {
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         destinations.removeValue(forKey: ObjectIdentifier(download))
-        NSLog("lowkey download failed: \(error.localizedDescription)")
+        Log.app.error("download failed: \(error.localizedDescription, privacy: .public)")
     }
 }
 

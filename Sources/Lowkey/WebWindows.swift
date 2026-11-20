@@ -1,4 +1,5 @@
 import AppKit
+import BobukUI
 import LowkeyCore
 import WebKit
 
@@ -27,7 +28,7 @@ enum WindowKind: Equatable {
 @MainActor class WebWindowController: NSWindowController, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
     let webView: LowkeyWebView
     unowned let app: AppController
-    var chrome: ChromeWindow { window as! ChromeWindow }
+    var chrome: LowkeyWindow { window as! LowkeyWindow }
     var popups: [PopupWindowController] = []
     /// The address that failed to load, so ⌘R retries it rather than the error page.
     var failedURL: URL?
@@ -37,14 +38,14 @@ enum WindowKind: Equatable {
     private var pageColorReady = false
     private var pageAppearanceTask: Task<Void, Never>?
 
-    init(window: ChromeWindow, webView: LowkeyWebView, app: AppController) {
+    init(window: LowkeyWindow, webView: LowkeyWebView, app: AppController) {
         self.webView = webView
         self.app = app
         super.init(window: window)
         window.delegate = self
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        WebKitSupport.pin(webView, in: window.body)
+        webView.pinEdges(to: window.body)
         observations = [
             watch(\.title), watch(\.url), watch(\.canGoBack), watch(\.canGoForward),
             watch(\.estimatedProgress), watch(\.isLoading),
@@ -324,16 +325,16 @@ enum WindowKind: Equatable {
     /// The first page of an ordinary window; saved sites use their configured start URL.
     private let initialURL: URL
     private let placement: SiteWindowPlacement?
-    private let backButton = GlyphButton(glyph: .back, label: "Back · ⌘←")
-    private let forwardButton = GlyphButton(glyph: .forward, label: "Forward · ⌘→")
-    private let startButton = GlyphButton(glyph: .start, label: "Open start page · ⇧⌘H")
+    private let backButton = StripButton(glyph: .back, label: "Back · ⌘←")
+    private let forwardButton = StripButton(glyph: .forward, label: "Forward · ⌘→")
+    private let startButton = StripButton(glyph: .start, label: "Open start page · ⇧⌘H")
 
     init(kind: WindowKind, startURL: URL, dataStore: WKWebsiteDataStore, app: AppController) {
         self.kind = kind
         if case .saved(let id) = kind { placement = SiteWindowPlacement(siteID: id) }
         else { placement = nil }
         initialURL = startURL
-        let window = ChromeWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
+        let window = LowkeyWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
                                   trailing: [backButton, startButton, forwardButton])
         window.minSize = NSSize(width: 360, height: 240)
         let webView = WebKitSupport.makeWebView(configuration: WebKitSupport.configuration(dataStore: dataStore))
@@ -345,7 +346,7 @@ enum WindowKind: Equatable {
 
         if let placement {
             placement.restore(window)
-        } else if let key = NSApp.keyWindow as? ChromeWindow, key.isVisible {
+        } else if let key = NSApp.keyWindow as? LowkeyWindow, key.isVisible {
             window.setFrameTopLeftPoint(window.cascadeTopLeft(from: NSPoint(x: key.frame.minX, y: key.frame.maxY)))
         } else {
             window.center()
@@ -503,8 +504,7 @@ enum WindowKind: Equatable {
         self.returnsToSite = returnsToSite
         let width = features?.width.map { CGFloat($0.doubleValue) } ?? 520
         let height = features?.height.map { CGFloat($0.doubleValue) } ?? 680
-        let window = ChromeWindow(contentRect: NSRect(x: 0, y: 0, width: max(320, width), height: max(240, height) + 34),
-                                  trailing: [])
+        let window = LowkeyWindow(contentRect: NSRect(x: 0, y: 0, width: max(320, width), height: max(240, height) + 34))
         window.minSize = NSSize(width: 320, height: 240)
         let webView = WebKitSupport.makeWebView(configuration: configuration)
         originBar.translatesAutoresizingMaskIntoConstraints = false
@@ -518,7 +518,7 @@ enum WindowKind: Equatable {
         super.init(window: window, webView: webView, app: app)
         // Re-pin the web view below the origin bar.
         webView.removeFromSuperview()
-        WebKitSupport.pin(webView, in: window.body, top: originBar.bottomAnchor)
+        webView.pinEdges(to: window.body, top: originBar.bottomAnchor)
         updateChrome()
     }
 
@@ -594,39 +594,29 @@ enum WindowKind: Equatable {
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
 
     func update(host: String, secure: Bool) {
-        let tokens = lowkeyTokens
         label.stringValue = host.isEmpty ? "…" : host
-        label.textColor = NSColor(tokens.muted)
         lock.isHidden = !secure
+        themeDidChange()
+    }
+
+    /// The window's chrome colors changed (or the bar moved to a window).
+    func themeDidChange() {
+        let tokens = lowkeyTokens
+        label.textColor = NSColor(tokens.muted)
+        lock.color = NSColor(tokens.muted)
         needsDisplay = true
-        lock.needsDisplay = true
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        themeDidChange()
     }
 
     override func draw(_ dirtyRect: NSRect) {
         let tokens = lowkeyTokens
-        label.textColor = NSColor(tokens.muted)
         NSColor(tokens.panel).setFill()
         bounds.fill()
         NSColor(tokens.stroke).setFill()
         NSRect(x: 0, y: 0, width: bounds.width, height: 1).fill()
-    }
-}
-
-/// A non-interactive glyph.
-@MainActor final class GlyphView: NSView {
-    var glyph: Glyph { didSet { needsDisplay = true } }
-    var color: NSColor?
-
-    init(glyph: Glyph) {
-        self.glyph = glyph
-        super.init(frame: .zero)
-    }
-
-    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
-    override var isFlipped: Bool { true }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let tokens = lowkeyTokens
-        glyph.draw(in: bounds, color: color ?? NSColor(tokens.muted), background: NSColor(tokens.panel), lineWidth: 1.4)
     }
 }

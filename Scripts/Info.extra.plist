@@ -1,0 +1,9 @@
+    <key>NSSupportsAutomaticTermination</key><false/>
+    <key>CFBundleURLTypes</key>
+    <array><dict>
+        <key>CFBundleURLName</key><string>@BUNDLE_ID@.deeplink</string>
+        <key>CFBundleURLSchemes</key><array><string>lowkey</string></array>
+    </dict></array>
+    <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoadsInWebContent</key><true/></dict>
+    <key>NSCameraUsageDescription</key><string>A website you open in lowkey asks to use the camera.</string>
+    <key>NSMicrophoneUsageDescription</key><string>A website you open in lowkey asks to use the microphone.</string>

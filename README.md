@@ -264,7 +264,11 @@ This isolates configuration/history, **not the default WebKit store**. Use rando
 site UUIDs, nonpersistent stores or a local mock page; never use real accounts for tests/screenshots.
 
 `Sources/LowkeyCore` is pure logic; `Sources/Lowkey` holds AppKit/WebKit/SwiftUI.
-The self-contained BobukKit package is in `Vendor/BobukKit`. Edit shared UI only in
+The self-contained BobukKit package is in `Vendor/BobukKit`. Windows are `LowkeyWindow`,
+a BobukUI `ChromeWindow` that takes its `ChromeStyle` from lowkey's theme; the ⌘L prompt
+is a BobukUI `BobukPanel(kind: .prompt)`. Layout variants and the history list come from
+BobukCore (`KeyboardLayoutSwap`, `RecentList`), and `lowkeyctl` talks to the app through
+BobukCore's `MessagePortServer`/`MessagePortClient`. Edit shared UI only in
 `~/GitHub/bobuk.io/BobukKit`, then run its `Scripts/sync.sh` and `--check` for all
 registered consumers. Release EXTRA_TESTS verifies snapshot hashes and tests the kit.
 

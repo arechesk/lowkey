@@ -1,5 +1,11 @@
 import AppKit
+import BobukCore
 import LowkeyCore
+
+/// lowkey's unified log (subsystem: the bundle identifier).
+enum Log {
+    static let app = BobukLog.logger("app")
+}
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var controller: AppController!
@@ -10,7 +16,7 @@ import LowkeyCore
     func applicationWillFinishLaunching(_ notification: Notification) {
         controller = AppController()
         controlPort = ControlPort(controller: controller)
-        if controlPort == nil { NSLog("lowkey: local control port unavailable") }
+        if controlPort == nil { Log.app.error("local control port unavailable") }
         NSApp.mainMenu = makeMainMenu()
     }
 

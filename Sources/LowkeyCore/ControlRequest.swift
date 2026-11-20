@@ -1,3 +1,4 @@
+import BobukCore
 import Foundation
 
 /// Versioned, login-session-local control channel. One port per running copy.
@@ -55,7 +56,10 @@ public struct ControlRequest: Sendable {
         command = .upload(name: filename, bytes: bytes, field: field)
     }
 
-    public static func portName(pid: Int32) -> String { "io.bobuk.lowkey.control.v1.\(pid)" }
+    /// `io.bobuk.lowkey.control.v1.<pid>`.
+    public static func portName(pid: Int32) -> String {
+        MessagePortServer.name(prefix: "io.bobuk.lowkey.control", version: 1, pid: pid)
+    }
     public var payload: Data {
         switch command {
         case .page(let verb, let args): Data("page ".utf8) + ((try? JSONEncoder().encode([alias, verb.rawValue] + args)) ?? Data())

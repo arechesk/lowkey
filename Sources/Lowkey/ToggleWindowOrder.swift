@@ -28,7 +28,7 @@ import LowkeyCore
     func hide(_ target: NSWindow, perform: () -> Void) {
         let background = WindowToggle.backgroundWindows(in: stack.map(\.number),
                                                         owned: Set(stack.filter(\.isOwned).map(\.number)))
-        let blocked = NSApp.windows.compactMap { $0 as? ChromeWindow }.filter {
+        let blocked = NSApp.windows.compactMap { $0 as? LowkeyWindow }.filter {
             $0 !== target && $0.allowsFocus && background.contains($0.windowNumber)
         }
         for window in blocked { window.allowsFocus = false }

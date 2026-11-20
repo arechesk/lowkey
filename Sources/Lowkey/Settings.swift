@@ -1,4 +1,5 @@
 import AppKit
+import BobukUI
 import LowkeyCore
 import SwiftUI
 
@@ -281,7 +282,7 @@ private struct StripPreview: View {
             .font(.system(size: 9, weight: .semibold))
             .foregroundStyle(Color(nsColor: NSColor(tokens.muted)))
             .padding(.horizontal, 6)
-            .frame(height: ChromeStrip.height)
+            .frame(height: ChromeMetrics.stripHeight)
             .background(Color(nsColor: NSColor(tokens.panel)))
             Rectangle().fill(Color(nsColor: NSColor(tokens.stroke))).frame(height: 1)
             Rectangle().fill(Color(nsColor: .textBackgroundColor)).frame(height: 22)
@@ -326,18 +327,14 @@ private struct GeneralPane: View {
 
     init(app: AppController) {
         model = SettingsModel(app: app)
-        let window = ChromeWindow(contentRect: NSRect(x: 0, y: 0, width: 712, height: 516), trailing: [])
+        let window = LowkeyWindow(contentRect: NSRect(x: 0, y: 0, width: 712, height: 516), resizable: false)
         window.title = "lowkey Settings"
-        let hosting = NSHostingView(rootView: SettingsView(model: model, store: app.store))
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        WebKitSupport.pin(hosting, in: window.body)
-        window.styleMask.remove(.resizable)
-        window.collectionBehavior.remove(.fullScreenPrimary)
+        window.setContent(SettingsView(model: model, store: app.store))
         super.init(window: window)
         window.delegate = self
-        window.strip.closeButton.label = "Close · ⌘W"
-        window.strip.closeButton.glyph = .terminate
-        window.strip.closeButton.onPress = { [weak self] _ in self?.close() }
+        window.closeButton.label = "Close · ⌘W"
+        window.closeButton.glyph = .terminate
+        window.closeButton.onPress = { [weak self] _ in self?.close() }
         window.setFrameAutosaveName("LowkeySettings")
         if !window.setFrameUsingName("LowkeySettings") { window.center() }
         applyTheme()
