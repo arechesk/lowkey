@@ -28,7 +28,7 @@ import BobukUI
     private let footerSeparator = Separator()
     /// Palette colors only: light or dark by the target's page, never its Tint color as panel.
     var pageTheme: PageTheme { target?.chrome.pageTheme ?? PageTheme() }
-    private var themeTokens: ThemeTokens { ThemeCenter.shared.tokens(page: pageTheme) }
+    private var themeTokens: LowkeyCore.ThemeTokens { ThemeCenter.shared.tokens(page: pageTheme) }
 
     static let width: CGFloat = 560
 
