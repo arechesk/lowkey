@@ -14,7 +14,7 @@ import BobukUI
     /// nil until the user picks a row with the arrow keys or the mouse.
     private var selected: Int?
 
-    private let background = PickerSurfaceView(palette: ThemeCenter.shared.tokens.pickerPalette)
+    private let background = PickerSurfaceView(palette: ThemeCenter.shared.tokens.pickerPalette())
     private let accent = NSView()
     private let infoRow = NSStackView()
     private let infoGlyph = GlyphView(glyph: .lock)
@@ -22,13 +22,13 @@ import BobukUI
     private let arrow = NSTextField(labelWithString: "→")
     private let field = NSTextField()
     private let list = NSStackView()
-    private let footer = NSHostingView(rootView: ShortcutFooter([], palette: ThemeCenter.shared.tokens.pickerPalette))
+    private let footer = NSHostingView(rootView: ShortcutFooter([], palette: ThemeCenter.shared.tokens.pickerPalette()))
     private let infoSeparator = Separator()
     private let listSeparator = Separator()
     private let footerSeparator = Separator()
     /// Palette colors only: light or dark by the target's page, never its Tint color as panel.
     var pageTheme: PageTheme { target?.chrome.pageTheme ?? PageTheme() }
-    private var themeTokens: LowkeyCore.ThemeTokens { ThemeCenter.shared.tokens(page: pageTheme) }
+    private var themeTokens: ThemeTokens { ThemeCenter.shared.tokens(page: pageTheme) }
 
     static let width: CGFloat = 560
 
@@ -148,7 +148,7 @@ import BobukUI
             infoGlyph.isHidden = true
             infoLabel.stringValue = message
             infoLabel.font = .systemFont(ofSize: 11.5)
-            infoLabel.textColor = NSColor(srgbRed: 0.75, green: 0.33, blue: 0.25, alpha: 1)
+            infoLabel.textColor = themeTokens.dangerNSColor
             infoRow.isHidden = false
         } else if let url = target?.webView.url, url.scheme != "about" {
             infoGlyph.isHidden = url.scheme != "https"
@@ -203,7 +203,7 @@ import BobukUI
         })
         for (index, suggestion) in suggestions.enumerated() {
             let row = NSHostingView(rootView: SuggestionRow(suggestion: suggestion, selected: index == selected,
-                badgeWidth: badgeWidth, palette: themeTokens.pickerPalette,
+                badgeWidth: badgeWidth, palette: themeTokens.pickerPalette(),
                 onChoose: { [weak self] in self?.submit(text: suggestion.text) },
                 onRemove: { [weak self] in
                     self?.app.store.removeHistory(suggestion.text)
@@ -221,7 +221,10 @@ import BobukUI
         var hints: [ShortcutHint] = [.init("↩", inCurrentProfile ? "open in this profile" : "open (address: \(target))")]
         if !inCurrentProfile { hints.append(.init("⌘↩", "new window")) }
         hints += [.init("↑↓", "choose"), .init("⌘C", "copy URL"), .init("esc", "close")]
-        footer.rootView = ShortcutFooter(hints, palette: themeTokens.pickerPalette)
+        footer.rootView = ShortcutFooter(hints, palette: themeTokens.pickerPalette(), onSettings: { [weak self] in
+            self?.orderOut(nil)
+            self?.app.showSettings()
+        })
         if isVisible { layoutIfNeededForSize() }
     }
 
@@ -285,7 +288,7 @@ import BobukUI
     private func applyTheme() {
         let tokens = themeTokens
         appearance = ThemeCenter.shared.chromeAppearance(page: pageTheme)
-        background.palette = tokens.pickerPalette
+        background.palette = tokens.pickerPalette()
         arrow.textColor = NSColor(tokens.accent)
         field.textColor = NSColor(tokens.ink)
         if !infoShowsError { infoLabel.textColor = NSColor(tokens.muted) }

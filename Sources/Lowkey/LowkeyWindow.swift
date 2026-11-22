@@ -53,7 +53,7 @@ import LowkeyCore
         return ChromeStyle(panel: NSColor(tokens.panel), ink: NSColor(tokens.ink), muted: NSColor(tokens.muted),
                            accent: NSColor(tokens.accent),
                            separator: NSColor(tinted ? tokens.panel : tokens.stroke),
-                           destructiveHover: tokens.isTinted ? nil : ChromeStyle.defaultDestructive,
+                           destructiveHover: tokens.isTinted ? nil : tokens.dangerNSColor,
                            appearance: center.stripAppearance(page: page))
     }
 

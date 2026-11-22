@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 import LowkeyCore
 import BobukUI
@@ -33,7 +34,7 @@ import BobukUI
             #expect(style.muted == NSColor(tokens.muted))
             #expect(style.accent == NSColor(tokens.accent))
             #expect(style.separator == NSColor(tokens.stroke))
-            #expect(style.destructiveHover == ChromeStyle.defaultDestructive)
+            #expect(style.destructiveHover == tokens.dangerNSColor)
             #expect(window.strip.appearance?.name == .aqua)
         }
     }
@@ -88,7 +89,7 @@ import BobukUI
         #expect(panel.canBecomeKey && !panel.canBecomeMain)
     }
 
-    @Test func rendersPreviews() throws {
+    @Test func rendersPreviews() async throws {
         guard let folder = ProcessInfo.processInfo.environment["BOBUKKIT_PREVIEW_DIR"] else { return }
         let output = URL(fileURLWithPath: folder, isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -110,6 +111,29 @@ import BobukUI
             window.tint = RGB(r: 0.1, g: 0.2, b: 0.5)
             window.accentBar.progress = 0.4
             try render(window, "lowkey-window-tint.png")
+        }
+        do {
+            let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let store = Store(configURL: root.appendingPathComponent("config.json"))
+            let app = AppController(store: store)
+            let model = SettingsModel(app: app)
+            model.draft.appearance.mode = .dark
+            model.editingDark = true
+            model.applyPreset("catppuccin")
+            let size = NSSize(width: 648, height: 540)
+            let host = ChromeWindow.hosting(AppearancePane(model: model).environment(\.colorScheme, .dark))
+            let win = LowkeyWindow(contentRect: NSRect(origin: .zero, size: ChromeMetrics.windowSize(forBody: size)), resizable: false)
+            defer { win.close() }
+            win.appearance = NSAppearance(named: .darkAqua)
+            win.setContent(host)
+            win.setContentSize(ChromeMetrics.windowSize(forBody: size))
+            host.setFrameSize(size)
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(100))
+            let bmp = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: bmp)
+            try #require(bmp.representation(using: .png, properties: [:])).write(to: output.appendingPathComponent("lowkey-appearance-dark.png"))
         }
     }
 }

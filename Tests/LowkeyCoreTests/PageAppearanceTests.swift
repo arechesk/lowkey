@@ -90,7 +90,7 @@ import Testing
         #expect(onLight.panel == light)
         #expect(onLight.ink == ThemeTokens.darkInk)
         #expect(onLight.accent == accent)
-        #expect(onLight.muted == light.mixed(with: ThemeTokens.darkInk, 0.78))
+        #expect(onLight.muted == light.mixed(with: ThemeTokens.darkInk, 0.72))
         let onDark = ThemeTokens(tint: dark, colors: palette)
         #expect(onDark.panel == dark)
         #expect(onDark.ink == ThemeTokens.lightInk)

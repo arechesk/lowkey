@@ -199,10 +199,11 @@ private let ha = Site(alias: "HA", title: "Home Assistant", startURL: "https://h
     }
 
     @Test func presetsAreValidHex() {
+        #expect(ThemePreset.all.count == 18)
         for preset in ThemePreset.all {
             for dark in [false, true] {
                 let colors = preset.colors(dark: dark)
-                #expect(RGB(hex: colors.panel) != nil && RGB(hex: colors.accent) != nil, "\(preset.id)")
+                #expect(colors.isValid, "\(preset.id)")
             }
         }
         #expect(Set(ThemePreset.all.map(\.id)).count == ThemePreset.all.count)
@@ -211,5 +212,23 @@ private let ha = Site(alias: "HA", title: "Home Assistant", startURL: "https://h
     @Test func flagsLowContrastAccent() {
         #expect(ThemeTokens(colors: ThemeColors(preset: "custom", panel: "#222222", accent: "#2a2a2a")).lowAccentContrast)
         #expect(RGB(hex: "#885500")?.hex == "#885500")
+    }
+
+    @Test func fullPaletteRoundTripsAndRemainsBackwardCompatible() throws {
+        // Legacy 2-color JSON still decodes cleanly with auto-derived semantic tokens.
+        let legacyJSON = ##"{"version":2,"appearance":{"mode":"dark","dark":{"preset":"catppuccin","panel":"#1e1e2e","accent":"#cba6f7"}}}"##
+        let legacy = try JSONDecoder().decode(Config.self, from: Data(legacyJSON.utf8))
+        #expect(legacy.appearance.dark.preset == "catppuccin")
+        #expect(legacy.appearance.dark.link == nil)
+
+        // Full 10-color preset round-trips every role.
+        let full = Config(appearance: AppearanceConfig(mode: .dark,
+                                                       light: ThemePreset.named("kanagawa")!.colors(dark: false),
+                                                       dark: ThemePreset.named("catppuccin")!.colors(dark: true)))
+        let encoded = try JSONEncoder().encode(full)
+        let decoded = try JSONDecoder().decode(Config.self, from: encoded)
+        #expect(decoded == full)
+        #expect(decoded.appearance.dark.link == "#89b4fa")
+        #expect(decoded.appearance.light.selection == "#d8d6b2")
     }
 }

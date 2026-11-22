@@ -61,19 +61,6 @@ public enum ThemeMode: String, Codable, CaseIterable, Sendable {
     case tint, page, system, light, dark
 }
 
-public struct ThemeColors: Codable, Equatable, Sendable {
-    /// Preset id, or `custom` after a manual color change.
-    public var preset: String
-    public var panel: String
-    public var accent: String
-
-    public init(preset: String, panel: String, accent: String) {
-        self.preset = preset
-        self.panel = panel
-        self.accent = accent
-    }
-}
-
 public struct AppearanceConfig: Codable, Equatable, Sendable {
     public var mode: ThemeMode
     public var light: ThemeColors
@@ -96,7 +83,7 @@ public struct AppearanceConfig: Codable, Equatable, Sendable {
     }
 
     private static func valid(_ colors: ThemeColors?) -> ThemeColors? {
-        guard let colors, RGB(hex: colors.panel) != nil, RGB(hex: colors.accent) != nil else { return nil }
+        guard let colors, colors.isValid else { return nil }
         return colors
     }
 

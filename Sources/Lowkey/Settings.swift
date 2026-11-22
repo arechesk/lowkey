@@ -78,22 +78,38 @@ import SwiftUI
         }
     }
 
+    var isDefaultForEditingMode: Bool {
+        colors == ThemePreset.amber.colors(dark: editingDark)
+    }
+
     func applyPreset(_ id: String) {
         guard let preset = ThemePreset.named(id) else { return }
         colors = preset.colors(dark: editingDark)
     }
 
-    func color(_ keyPath: WritableKeyPath<ThemeColors, String>) -> Binding<Color> {
+    func color(for role: ThemeColorRole) -> Binding<Color> {
         Binding(get: { [weak self] in
-            guard let self, let rgb = RGB(hex: self.colors[keyPath: keyPath]) else { return .gray }
-            return Color(nsColor: NSColor(rgb))
+            guard let self else { return .gray }
+            return Color(ThemeTokens(colors: self.colors).color(for: role))
         }, set: { [weak self] color in
-            guard let self, let rgb = NSColor(color).rgb, rgb.hex != self.colors[keyPath: keyPath] else { return }
-            var colors = self.colors
-            colors[keyPath: keyPath] = rgb.hex
-            colors.preset = "custom"
-            self.colors = colors
+            guard let self, let rgb = NSColor(color).rgb else { return }
+            let current = ThemeTokens(colors: self.colors).color(for: role)
+            guard rgb.hex != current.hex else { return }
+            var next = self.colors
+            next.set(rgb.hex, for: role)
+            self.colors = next
         })
+    }
+
+    func canResetToAuto(_ role: ThemeColorRole) -> Bool {
+        guard role != .panel && role != .accent else { return false }
+        return colors.preset == ThemeColors.customPresetID && colors.hex(for: role) != nil
+    }
+
+    func resetToAuto(_ role: ThemeColorRole) {
+        var next = colors
+        next.set(nil, for: role)
+        colors = next
     }
 
     func resetColors() { applyPreset(ThemePreset.amber.id) }
@@ -115,6 +131,7 @@ struct SettingsView: View {
     @ObservedObject var store: Store
 
     var body: some View {
+        let activeTokens = ThemeTokens(colors: model.draft.appearance.colors(dark: ThemeCenter.shared.isDark))
         TabView {
             SitesPane(model: model)
                 .tabItem { Label("Sites", systemImage: "rectangle.stack") }
@@ -124,8 +141,8 @@ struct SettingsView: View {
                 .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
         }
         .padding(16)
-        .frame(width: 680, height: 470)
-        .tint(Color(nsColor: NSColor(ThemeCenter.shared.tokens.accent)))
+        .frame(width: 680, height: 540)
+        .tint(activeTokens.accentColor)
     }
 }
 
@@ -227,8 +244,41 @@ private struct SitesPane: View {
     }
 }
 
-private struct AppearancePane: View {
+struct AppearancePane: View {
     @ObservedObject var model: SettingsModel
+    @State private var showMoreColors = false
+
+    private static let coreRoles: [(ThemeColorRole, String)] = [
+        (.panel, "Panel"),
+        (.accent, "Accent"),
+        (.ink, "Text"),
+    ]
+
+    private static let advancedRoles: [(ThemeColorRole, String)] = [
+        (.surface, "Surface"),
+        (.muted, "Muted text"),
+        (.border, "Border"),
+        (.selection, "Selection"),
+        (.link, "Link"),
+        (.success, "Success"),
+        (.danger, "Danger"),
+    ]
+
+    private func colorRow(_ role: ThemeColorRole, title: String) -> some View {
+        LabeledContent(title) {
+            HStack(spacing: 8) {
+                if model.canResetToAuto(role) {
+                    Button("Auto") { model.resetToAuto(role) }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help("Use automatic contrast-matched color")
+                }
+                ColorPicker(title, selection: model.color(for: role), supportsOpacity: false)
+                    .labelsHidden()
+            }
+        }
+    }
 
     var body: some View {
         let tokens = ThemeTokens(colors: model.colors)
@@ -247,24 +297,63 @@ private struct AppearancePane: View {
                     Text("Dark").tag(true)
                 }
                 .pickerStyle(.segmented)
-                Picker("Theme", selection: Binding(get: { model.colors.preset }, set: { model.applyPreset($0) })) {
-                    ForEach(ThemePreset.all) { preset in Text(preset.title).tag(preset.id) }
-                    Text("Custom").tag("custom")
+                LabeledContent("Theme") {
+                    HStack(spacing: 10) {
+                        ThemeSwatchStrip(tokens: tokens)
+                        Picker("Theme", selection: Binding(
+                            get: {
+                                let id = model.colors.preset
+                                return ThemePreset.all.contains(where: { $0.id == id }) ? id : ThemeColors.customPresetID
+                            },
+                            set: { model.applyPreset($0) }
+                        )) {
+                            ForEach(ThemePreset.all) { preset in Text(preset.title).tag(preset.id) }
+                            if model.colors.preset == ThemeColors.customPresetID {
+                                Divider()
+                                Text("Custom").tag(ThemeColors.customPresetID)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 170)
+                    }
                 }
-                ColorPicker("Panel", selection: model.color(\.panel), supportsOpacity: false)
-                ColorPicker("Accent strip", selection: model.color(\.accent), supportsOpacity: false)
-                LabeledContent("Preview") { StripPreview(tokens: tokens) }
+                ForEach(Self.coreRoles, id: \.0) { role, title in
+                    colorRow(role, title: title)
+                }
+                DisclosureGroup("More colors", isExpanded: $showMoreColors) {
+                    ForEach(Self.advancedRoles, id: \.0) { role, title in
+                        colorRow(role, title: title)
+                    }
+                }
+                LabeledContent("Preview") {
+                    HStack(alignment: .top, spacing: 10) {
+                        StripPreview(tokens: tokens)
+                        ThemePreview(tokens: tokens)
+                    }
+                }
                 if tokens.lowAccentContrast {
-                    Label("The accent strip is hard to see on this panel.", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
+                    Label("The accent color is hard to see on this panel.", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(tokens.dangerColor)
                 }
-                Button("Reset to Amber", action: model.resetColors)
+                if tokens.lowInkContrast {
+                    Label("The text color has low contrast on this panel.", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(tokens.dangerColor)
+                }
+                HStack {
+                    Spacer()
+                    Button("Reset to Amber", action: model.resetColors)
+                        .disabled(model.isDefaultForEditingMode)
+                }
             } footer: {
-                Text("Page mode follows each page’s background, falling back to System when unavailable. Each window switches independently. Light and dark palettes keep their own colors; lowkey never recolors the page.")
+                Text("Tint follows the page’s theme color or background on the window strip. Page follows each page’s light or dark background. Light and dark palettes keep their own colors; lowkey never recolors the page.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+        .onChange(of: model.draft.appearance.mode) { _, next in
+            if next == .light { model.editingDark = false }
+            else if next == .dark { model.editingDark = true }
+        }
     }
 }
 
@@ -273,23 +362,23 @@ private struct StripPreview: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Rectangle().fill(Color(nsColor: NSColor(tokens.accent))).frame(height: 2)
+            Rectangle().fill(tokens.accentColor).frame(height: 3)
             HStack(spacing: 8) {
                 Text("×")
                 Spacer()
                 Text("‹  ⇤  ›")
             }
             .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(Color(nsColor: NSColor(tokens.muted)))
+            .foregroundStyle(tokens.mutedColor)
             .padding(.horizontal, 6)
             .frame(height: ChromeMetrics.stripHeight)
-            .background(Color(nsColor: NSColor(tokens.panel)))
-            Rectangle().fill(Color(nsColor: NSColor(tokens.stroke))).frame(height: 1)
-            Rectangle().fill(Color(nsColor: .textBackgroundColor)).frame(height: 22)
+            .background(tokens.panelColor)
+            Rectangle().fill(tokens.strokeColor).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .textBackgroundColor)).frame(height: 55)
         }
-        .frame(width: 220)
-        .clipShape(RoundedRectangle(cornerRadius: 5))
-        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color(nsColor: NSColor(tokens.line))))
+        .frame(width: 170)
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(tokens.lineColor, lineWidth: 1))
         .accessibilityHidden(true)
     }
 }
@@ -327,7 +416,7 @@ private struct GeneralPane: View {
 
     init(app: AppController) {
         model = SettingsModel(app: app)
-        let window = LowkeyWindow(contentRect: NSRect(x: 0, y: 0, width: 712, height: 516), resizable: false)
+        let window = LowkeyWindow(contentRect: NSRect(x: 0, y: 0, width: 712, height: 586), resizable: false)
         window.title = "lowkey Settings"
         window.setContent(SettingsView(model: model, store: app.store))
         super.init(window: window)

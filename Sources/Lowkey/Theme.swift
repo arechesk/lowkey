@@ -2,23 +2,7 @@ import AppKit
 import LowkeyCore
 import BobukUI
 
-extension ThemeTokens {
-    var pickerPalette: PickerPalette {
-        PickerPalette(surface: NSColor(panel), text: NSColor(ink), secondary: NSColor(muted),
-                      accent: NSColor(accent), border: NSColor(line), badgeInk: NSColor(keyInk))
-    }
-}
-
 extension NSColor {
-    convenience init(_ rgb: RGB, alpha: CGFloat = 1) {
-        self.init(srgbRed: rgb.r, green: rgb.g, blue: rgb.b, alpha: alpha)
-    }
-
-    var rgb: RGB? {
-        guard let color = usingColorSpace(.sRGB) else { return nil }
-        return RGB(r: Double(color.redComponent), g: Double(color.greenComponent), b: Double(color.blueComponent))
-    }
-
     var pageColor: PageColor? {
         guard let rgb, let color = usingColorSpace(.sRGB) else { return nil }
         return PageColor(rgb: rgb, alpha: Double(color.alphaComponent))
@@ -63,13 +47,13 @@ extension NSView {
 
     private init() {
         // Lowkey never sets NSApp.appearance, so this follows System Settings.
-        systemObservation = NSApp.observe(\.effectiveAppearance) { _, _ in
+        systemObservation = NSApplication.shared.observe(\.effectiveAppearance) { _, _ in
             DispatchQueue.main.async { ThemeCenter.shared.notify() }
         }
     }
 
     var systemIsDark: Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        NSApplication.shared.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 
     var isDark: Bool { isDark(page: PageTheme()) }
